@@ -1,0 +1,28 @@
+{
+  "downside": {
+    "trigger": "first_buy",
+    "unlocks": "intermediate",
+    "title": "Quick check: your downside",
+    "prompt": "You put $1,000 into a stock. Right after, the price falls 10%. What is your position worth now?",
+    "options": ["$1,100", "$1,000", "$900"],
+    "answer": 2,
+    "explain_correct": "Yes. A 10% fall on $1,000 is $100, so you hold $900. The loss comes off your money the moment the price falls, and you only turn it into cash if you sell.",
+    "explain_wrong": "Not quite. The price fell, so your shares are worth less: 10% of $1,000 is $100, leaving $900. You only turn that into cash if you sell.",
+    "pitch_label": "worked out their downside after one simulated trade"
+  },
+  "safety_net": {
+    "trigger": "safety_net_active",
+    "unlocks": "advanced",
+    "title": "Quick check: the safety net",
+    "prompt": "You set a safety net (a stop-loss) 10% below your purchase price. Then the price keeps falling. What does the safety net do?",
+    "options": [
+      "It guarantees I lose nothing.",
+      "It sells my shares automatically once the price hits my stop, which limits how much more I can lose.",
+      "It buys more shares to lower my average price."
+    ],
+    "answer": 1,
+    "explain_correct": "Yes. It limits your loss; it does not erase it. And if the price dips to your stop and bounces back, you were sold out at the bottom. That is the price of protection.",
+    "explain_wrong": "Not quite. A safety net sells your shares automatically once the price falls to your stop, so a fall cannot keep hurting you. You still take the loss up to that point, and it cannot buy anything for you.",
+    "pitch_label": "explained how a stop-loss works"
+  }
+}

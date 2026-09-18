@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "owner": "V1",
+    "status": "first draft: V1 must reread every line against the downside-first rule",
+    "rule": "downside first: [What you could lose]. [What it does].",
+    "keys": "actionId.tier; a missing tier falls back to the nearest lower tier, then the nearest higher one"
+  },
+
+  "order.buy.beginner": {
+    "downside": "If the price falls, your shares are worth less right away, and you could lose some or all of the money you put in.",
+    "text": "Buying swaps your cash for shares of the company. You only make money if you later sell for more than you paid.",
+    "more": "Try a small amount first and watch what happens as the days move forward."
+  },
+  "order.buy.intermediate": {
+    "downside": "A market buy pays the current price, so a fall right after you buy leaves you down straight away.",
+    "text": "A market order buys now and is certain to fill, but you do not control the price you get."
+  },
+  "order.buy.advanced": {
+    "downside": "A fast drop right after your fill leaves you down before you can react, so decide where you would get out before you get in.",
+    "text": "Market orders fill at the day's closing price in this simulator."
+  },
+
+  "order.sell.beginner": {
+    "downside": "If you sell for less than you paid, that loss becomes permanent. If the price rises after you sell, you also miss those gains.",
+    "text": "Selling turns your shares back into cash at the current price.",
+    "more": "Selling is the moment a paper loss becomes a real one."
+  },
+  "order.sell.intermediate": {
+    "downside": "Selling below your average price locks in a loss, and the shares you sold cannot recover it for you later.",
+    "text": "A market sell exits now at the current price and returns the cash to your balance."
+  },
+  "order.sell.advanced": {
+    "downside": "Selling right after a big drop locks in the whole loss and gives up any rebound.",
+    "text": "Market sells exit at the day's closing price. To exit automatically at a level, use a stop order or a safety net."
+  },
+
+  "order.limit.intermediate": {
+    "downside": "If the price never reaches your limit, the order never fills, and you can miss the move you wanted to trade.",
+    "text": "A limit order fills only at your price or better. It protects the price you pay, not whether you get filled."
+  },
+  "order.limit.advanced": {
+    "downside": "A resting limit order can fill while you are not watching, and if the price keeps falling after it fills, you lose money on those shares.",
+    "text": "Limit buys fill at your limit or lower; limit sells fill at your limit or higher. Cancel it if your plan changes."
+  },
+
+  "order.stop.advanced": {
+    "downside": "If the price dips to your stop and bounces straight back, you are sold out at the bottom. If it gaps past your stop, you can sell for less than your stop price.",
+    "text": "A stop order sells once the price falls to your stop price, which caps how much more you can lose."
+  },
+
+  "safety_net.prompt.beginner": {
+    "downside": "Losses feel worse in the moment, and people often panic-sell near the bottom.",
+    "text": "A safety net lets you decide your exit now, calmly, instead of in the middle of a fall."
+  },
+  "safety_net.prompt.intermediate": {
+    "downside": "Ignoring a falling position can turn an 8% loss into a much bigger one.",
+    "text": "Pick how far the price may fall before your shares are sold automatically."
+  },
+  "safety_net.prompt.advanced": {
+    "downside": "Waiting for a rebound is a bet, and a losing one can cost you far more than the stop would have.",
+    "text": "Decide the exit level while you are calm, then let the rule do the selling."
+  },
+
+  "safety_net.stop_loss.beginner": {
+    "downside": "A safety net can sell you out at a low point: if the price dips to your stop and then bounces back, you have locked in the loss.",
+    "text": "You set a rule once: if the price falls to a chosen level, your shares are sold automatically so a fall cannot get worse.",
+    "more": "Set wider and it takes a bigger fall to sell you out, but you can lose more first."
+  },
+  "safety_net.stop_loss.intermediate": {
+    "downside": "Set it too tight and a normal wobble sells you out; set it too wide and you can lose a lot before it acts.",
+    "text": "You choose how far the price may fall before your shares are sold automatically."
+  },
+  "safety_net.stop_loss.advanced": {
+    "downside": "A stop is not a guarantee: in a fast drop or a gap, the sale can happen below your stop price.",
+    "text": "Once the price trades at or below your stop, the safety net sells the whole position."
+  },
+
+  "chart.line.beginner": {
+    "downside": "A line only joins closing prices, so it hides the dives inside each day: a safety net can trigger on a low the line never shows, and you can lose money you did not see coming.",
+    "text": "This line shows where the price closed each day so far. The future stays hidden, just like in real life."
+  },
+  "chart.levels.intermediate": {
+    "downside": "Prices often break through a past low, so a floor can fail and you can still lose money.",
+    "text": "The dashed lines mark the highest and lowest close so far, so you can see how far the price has already moved."
+  },
+  "chart.candlestick.advanced": {
+    "downside": "Candles can suggest patterns that are not there, and acting on a false pattern can cost you money.",
+    "text": "Each candle shows one day's open, high, low and close: the body runs from open to close, and the thin lines reach the extremes."
+  },
+  "chart.strategy.advanced": {
+    "downside": "A moving-average crossover reacts after the price has already moved, and in choppy markets it flips back and forth, buying high and selling low, so you can lose money following it.",
+    "text": "The arrows mark where the 5-day average crossed the 20-day average. The signals are precomputed and only shown up to today."
+  },
+
+  "portfolio.cash.beginner": {
+    "downside": "Cash cannot fall in a market dip, but it earns nothing toward your goal and inflation slowly shrinks what it can buy.",
+    "text": "Cash is your buying power. It drops when you buy and refills when you sell."
+  },
+  "portfolio.position.beginner": {
+    "downside": "Your shares are the part of your money that can lose value: the bigger the position, the bigger the possible loss.",
+    "text": "This is what you own now, and the average price you paid for it."
+  },
+  "portfolio.pnl.beginner": {
+    "downside": "This number can go negative, and it is only a paper loss until you sell. Selling makes it real.",
+    "text": "Unrealized profit or loss compares today's price with your average purchase price."
+  },
+  "portfolio.shadow.beginner": {
+    "downside": "This is a what-if, not real money: if the price keeps falling your safety net saved you money, but if it bounces back you were sold out at the bottom.",
+    "text": "The shadow shows where you would be if you had ignored your safety net and kept the shares."
+  }
+}

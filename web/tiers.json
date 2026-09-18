@@ -1,0 +1,44 @@
+[
+  {
+    "id": "beginner",
+    "title": "Tier 1: Foundation",
+    "badge": "Risk Aware",
+    "description": "Learn what you can lose before what you can gain: a clean line chart, plain-English market orders and a one-tap safety net.",
+    "unlocks": { "order_types": ["MARKET"], "chart": "line", "custom_safety_net": false, "strategy_overlay": false },
+    "features": [
+      "Clean line chart (the future stays hidden)",
+      "Market buy and sell orders",
+      "Downside calculator on every order",
+      "One-tap safety net when a position is down 8%"
+    ],
+    "how_to_unlock": "Everyone starts here."
+  },
+  {
+    "id": "intermediate",
+    "title": "Tier 2: Tactical Protection",
+    "badge": "Safety Net Guard",
+    "description": "Take control of your protection: limit orders, safety nets you size yourself and the highs and lows so far.",
+    "unlocks": { "order_types": ["MARKET", "LIMIT"], "chart": "line_levels", "custom_safety_net": true, "strategy_overlay": false },
+    "features": [
+      "Limit buy and sell orders",
+      "Choose how far the price may fall before your safety net sells",
+      "High and low so far marked on the chart",
+      "Open orders you can cancel"
+    ],
+    "how_to_unlock": "Answer the quick check after your first trade correctly."
+  },
+  {
+    "id": "advanced",
+    "title": "Tier 3: Strategic Mastery",
+    "badge": "Market Navigator",
+    "description": "Read the market in more detail: candlesticks, stop orders and a precomputed moving-average strategy.",
+    "unlocks": { "order_types": ["MARKET", "LIMIT", "STOP"], "chart": "candles", "custom_safety_net": true, "strategy_overlay": true },
+    "features": [
+      "Candlestick chart (open, high, low, close)",
+      "Stop orders you place yourself",
+      "Moving-average crossover signals (precomputed)",
+      "Everything from Tiers 1 and 2"
+    ],
+    "how_to_unlock": "Set a safety net, then answer the stop-loss check correctly."
+  }
+]

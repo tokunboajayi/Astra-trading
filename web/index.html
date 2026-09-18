@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rich-HER · Astra Trading</title>
+  <meta name="description" content="Learn what you could lose before what you could gain. A downside-first trading simulator with a price replay where the future is hidden.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='700' text-anchor='middle' fill='%2304101f' font-family='sans-serif'%3ER%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">R</span>
+      <div>
+        <h1>Rich-HER <span class="brand-sub">Astra Trading</span></h1>
+        <p class="tagline">Learn what you could lose first.</p>
+      </div>
+    </div>
+    <nav id="tierScrub" class="tier-scrub" aria-label="Tiers: preview what you unlock"></nav>
+    <button id="btnReset" type="button" class="btn btn-ghost" title="Restores $10,000 and clears everything for the next person">Reset demo</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="fatal" class="fatal panel" hidden></div>
+
+  <main id="app" hidden>
+    <section class="stats" aria-label="Your money">
+      <div class="stat"><h2 data-hint="portfolio.cash">Cash</h2><p id="valCash" class="stat-value"></p><p class="stat-sub">Buying power</p></div>
+      <div class="stat"><h2 data-hint="portfolio.position">Position</h2><p id="valPosition" class="stat-value"></p><p id="subPosition" class="stat-sub"></p></div>
+      <div class="stat"><h2>Total equity</h2><p id="valEquity" class="stat-value"></p><p id="subEquity" class="stat-sub"></p></div>
+      <div class="stat"><h2 data-hint="portfolio.pnl">Profit or loss</h2><p id="valPnl" class="stat-value"></p><p id="subPnl" class="stat-sub"></p></div>
+    </section>
+    <p id="shadowLine" class="shadow-line" data-hint="portfolio.shadow" hidden><span id="shadowText"></span></p>
+
+    <div class="layout">
+      <section class="panel chart-panel" aria-label="Price chart">
+        <div class="panel-head">
+          <div>
+            <h2 id="chartTitle" data-hint="chart.line"><span id="chartName"></span> <span id="chartBadge" class="badge"></span></h2>
+            <p class="price-row"><span id="valPrice" class="price"></span> <span id="valDay" class="day"></span></p>
+          </div>
+          <div class="replay-controls" role="group" aria-label="Move the replay forward">
+            <button id="btnAdv1" type="button" class="btn">+1 day</button>
+            <button id="btnAdv5" type="button" class="btn">+5 days</button>
+            <button id="btnFast" type="button" class="btn btn-accent">Fast-forward</button>
+          </div>
+        </div>
+        <svg id="chart" class="chart" role="img" aria-label="Price chart"></svg>
+        <p id="chartLegend" class="legend" data-hint="chart.strategy" hidden><span id="legendText"></span></p>
+        <p id="replayNote" class="replay-note" aria-live="polite"></p>
+        <div id="moneyFlow" class="money-flow" aria-live="polite"></div>
+      </section>
+
+      <aside class="side">
+        <section id="ticket" class="panel ticket" aria-label="Order ticket"></section>
+        <section id="checkCard" class="panel check" aria-live="polite" hidden></section>
+        <section id="ordersCard" class="panel" hidden><h3>Waiting orders</h3><ul id="ordersList" class="orders"></ul></section>
+        <section class="panel"><h3>What just happened</h3><ol id="feedList" class="feed"></ol></section>
+      </aside>
+    </div>
+  </main>
+
+  <div id="onboarding" class="overlay" role="dialog" aria-modal="true" aria-labelledby="obTitle" hidden></div>
+  <div id="safetyModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="snTitle" hidden></div>
+  <div id="hintPop" class="hintpop" role="tooltip" hidden></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <footer class="footer">
+    Educational simulator. Prices are synthetic replay data, not real market prices, and nothing here is financial advice.
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
