@@ -79,13 +79,24 @@ def cmd_setup():
 
 
 def cmd_run():
-    """Start the app. One process serves both the API and the web page."""
-    py = need_venv()
-    say("Starting on http://127.0.0.1:8000  -  press Ctrl+C to stop")
-    print("If the page does not load, check this window for a red error message.\n")
+    """Start the app. One process serves both the API and the web page.
+
+    A host like Render sets $PORT, has no .venv, and reaches us through its own router:
+    binding 127.0.0.1 there means every request hangs with nothing to answer it.
+    """
+    port = os.environ.get("PORT")
+    args = ["-m", "uvicorn", "server.main:app", "--port", port or "8000"]
+    if port:
+        py = str(VENV_PY) if VENV_PY.exists() else sys.executable
+        args += ["--host", "0.0.0.0"]          # the platform's router is not on localhost
+        say(f"Starting on 0.0.0.0:{port}")
+    else:
+        py = need_venv()
+        args.append("--reload")                # only ever useful while editing
+        say("Starting on http://127.0.0.1:8000  -  press Ctrl+C to stop")
+        print("If the page does not load, check this window for a red error message.\n")
     try:
-        subprocess.run([py, "-m", "uvicorn", "server.main:app",
-                        "--port", "8000", "--reload"], cwd=ROOT)
+        subprocess.run([py, *args], cwd=ROOT)
     except KeyboardInterrupt:
         say("Stopped.")
 

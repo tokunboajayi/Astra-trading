@@ -39,6 +39,21 @@ Without the blueprint, the same thing by hand: a **Web Service**, runtime Python
 `pip install -r server/requirements.txt`, start
 `uvicorn server.main:app --host 0.0.0.0 --port $PORT`.
 
+`python dev.py run` also works as a start command. It reads `$PORT` and binds `0.0.0.0`
+when the platform sets one, and falls back to the system Python when there's no `.venv`.
+
+### If the site hangs with no response
+
+Connection opens, TLS completes, then nothing — that means the router has no app to talk
+to. In order of likelihood:
+
+1. **The start command binds localhost.** `uvicorn server.main:app --port 8000` listens on
+   127.0.0.1, which the router cannot reach. It needs `--host 0.0.0.0 --port $PORT`.
+2. **An old `python dev.py run` that required `.venv`.** Render has no `.venv`, so the
+   process died on startup. Fixed here — redeploy so the service picks up the new `dev.py`.
+3. **Check the branch.** A service built from `main` before this work merged has neither
+   `render.yaml` nor per-visitor sessions.
+
 ## 3. Point the domain at it
 
 1. Render → your service → **Settings** → **Custom Domains** → add both `rich-her.tech` and
