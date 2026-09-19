@@ -36,13 +36,21 @@ export function renderTierScrub(nav, { tiers, active, unlocked, previewTier, onP
 
 /** The welcome card. onStart({ experience, symbol }). */
 export function renderOnboarding(overlay, { symbols, startingCash, onStart }) {
-  let experience = 'new';
-  let symbol = symbols[0]?.symbol ?? 'AAPL';
+  const fallback = symbols[0]?.symbol;
   const radio = (name, value, checked, label, sub) => h('label', { class: 'choice' },
-    h('input', { type: 'radio', name, value, checked: checked ? true : null, onchange: () => { if (name === 'experience') experience = value; else symbol = value; } }),
+    h('input', { type: 'radio', name, value, checked: checked ? true : null }),
     h('span', { class: 'choice-body' }, h('strong', { text: label }), sub ? h('small', { text: sub }) : null));
 
-  mount(overlay, h('form', { class: 'modal-card onboarding', onsubmit: (e) => { e.preventDefault(); onStart({ experience, symbol }); } },
+  // Read what the form ACTUALLY holds at submit. Tracking the selection in a closure via
+  // onchange desynced whenever a radio was checked by any route that does not fire change,
+  // and the screen then disagreed with the request.
+  const submit = (e) => {
+    e.preventDefault();
+    const picked = new FormData(e.target);
+    onStart({ experience: picked.get('experience') || 'new', symbol: picked.get('symbol') || fallback });
+  };
+
+  mount(overlay, h('form', { class: 'modal-card onboarding', onsubmit: submit },
     h('h2', { id: 'obTitle', text: 'Learn what you could lose first' }),
     h('p', { class: 'modal-body', text: `Most trading apps sell you the upside. Rich-HER shows the downside first. You get ${usd(startingCash)} of pretend money and a price replay where the future is hidden.` }),
     h('fieldset', {}, h('legend', { text: 'How much have you invested before?' }),

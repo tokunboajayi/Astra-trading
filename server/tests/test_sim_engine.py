@@ -112,7 +112,7 @@ def test_open_orders_trigger_in_id_order_and_skip_finished_ones():
     assert [h["order_id"] for h in hits] == [2, 3]
 
 
-POS = {"AAPL": {"qty": 10, "avg_price": 150.0}}
+POS = {"HLX": {"qty": 10, "avg_price": 150.0}}
 
 
 def test_safety_net_prompt_fires_at_exactly_minus_8_percent():
@@ -123,8 +123,8 @@ def test_safety_net_prompt_fires_at_exactly_minus_8_percent():
 
 
 def test_safety_net_prompt_respects_dismissal_and_existing_protection():
-    assert sim.check_safety_net_candidates(POS, 138.0, [], {"AAPL"}) == []
-    net = {**stop(135.0, safety_net=True), "symbol": "AAPL", "qty": 10}
+    assert sim.check_safety_net_candidates(POS, 138.0, [], {"HLX"}) == []
+    net = {**stop(135.0, safety_net=True), "symbol": "HLX", "qty": 10}
     assert sim.check_safety_net_candidates(POS, 138.0, [net], set()) == []
     half = {**net, "qty": 4}                                                       # covers only part
     assert len(sim.check_safety_net_candidates(POS, 138.0, [half], set())) == 1

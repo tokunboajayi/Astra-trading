@@ -14,7 +14,7 @@ The master inventory of what has to exist for a winning HackHERS submission. Box
 | [x] | `server/main.py` | B | FastAPI session, tier gates, 12 live routes + 2 stubs ([SPEC §8](SPEC.md#8-api-contract)) |
 | [x] | `server/tests/`, `pytest.ini` | B | 60 tests: engine, fixtures, API and flows, content lint |
 | [x] | `server/smoke-test.sh` | B | Sanity-checks every route on a running server |
-| [x] | `scripts/build_fixtures.py`, `fixtures/*.json` | B | 5 symbols x 90 synthetic bars; AAPL has the −22.7% drawdown |
+| [x] | `scripts/build_fixtures.py`, `fixtures/*.json` | B | 5 symbols x 90 synthetic bars; HLX has the −22.7% drawdown |
 | [x] | `scripts/e2e-browser.mjs` | B | Optional headless-browser run of the whole flow |
 | [x] | `web/index.html`, `index.css`, `app.js`, `format.js` | F | Shell, styles, state, rendering; phone layout |
 | [x] | `web/chart.js` | F | Line, line + highs/lows, candlesticks; the future stays hidden |
@@ -36,7 +36,7 @@ The master inventory of what has to exist for a winning HackHERS submission. Box
 | 1 | Confirm HackHERS 2027 dates, tracks, judging criteria and **pre-work rules** | V2 | This week |
 | 2 | Resolve team composition (one or two frontend devs; **who is V2**) and lock file ownership | Team lead (AJ) | This week |
 | 3 | Review `hints.json` downside-first, keyed by tier | V1 | 2 weeks |
-| 4 | Confirm the demo symbol: AAPL's −22.7% drawdown is built in and verified (`scripts/build_fixtures.py --check`) | B | Done; re-verify if fixtures change |
+| 4 | Confirm the demo symbol: HLX's −22.7% drawdown is built in and verified (`scripts/build_fixtures.py --check`) | B | Done; re-verify if fixtures change |
 | 5 | Schedule the full 24-hour dry-run build, ~3–4 weeks before the event, and time each phase against the 24-hour budget | Team lead | Date set this week |
 | 6 | Confirm how the `.tech` domain is claimed (sponsor form vs self-purchase) and who owns DNS | V2 | This week |
 | 7 | Pick the deploy targets (frontend host + backend host) so B and F are not guessing mid-event | Team lead (AJ) | 2 weeks |

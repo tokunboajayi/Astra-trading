@@ -1,0 +1,156 @@
+/* ---------------------------------------------------------------------------
+   tokens.css — the design system for Rich-HER.
+
+   LIVE. Loaded by index.html before index.css.
+
+   Consolidates the 64 distinct colours, 26 type sizes, 12 radii and 25 spacing
+   values used across the mockup boards down to a system that fits on one screen.
+
+   Two surfaces, and that split is the whole idea:
+     PAPER  the room where the coach lives. Warm, calm, human.
+     INK    the market stage. Serious, credible, never toy-like.
+   A third, VELA, is the wizard's register and is used nowhere else.
+
+   Offline rule (SPEC section 1, principle 2): no CDN, no web fonts, no font
+   files fetched at all. scripts/e2e-browser.mjs fails the build if anything
+   reaches googleapis/gstatic/cdn, or if any request 404s.
+--------------------------------------------------------------------------- */
+
+/* Display face: system serif stack. NO @font-face and NO web font — a missing or
+   remote font file would trip scripts/e2e-browser.mjs (failed request, or the
+   googleapis/gstatic check on line 145) and break the Wi-Fi-off demo.
+
+   To upgrade to Fraunces later: drop fraunces-400.woff2 / fraunces-600.woff2 into
+   web/fonts/, add @font-face rules pointing at those RELATIVE paths, and prepend
+   "Fraunces" to --font-display below. Still offline, still passes the e2e. */
+
+:root {
+  /* ---- PAPER: the room ------------------------------------------------- */
+  --paper-0: #fffdfa;          /* card surface */
+  --paper-1: #f7f4ef;          /* page canvas */
+  --paper-2: #f2ede4;          /* sunken / inset */
+  --paper-3: #e3ddd2;          /* hairline border */
+  --paper-4: #d5cec1;          /* emphasis border */
+
+  /* ---- INK: the market stage ------------------------------------------- */
+  --ink-0: #16202b;            /* stage canvas */
+  --ink-1: #1a2530;            /* chart panel */
+  --ink-2: #253442;            /* panel border */
+  --ink-3: #2c3c4c;            /* raised control */
+
+  /* ---- VELA: the wizard, and nowhere else ------------------------------ */
+  --vela-0: #131a2b;           /* her ground */
+  --vela-1: #1a2340;           /* her panel */
+  --vela-2: #2d3760;           /* her border */
+  --vela-3: #3a4676;           /* her highlight */
+  --vela-gold: #d9bd7a;        /* the offer */
+  --vela-cream: #e8dcc4;       /* her voice */
+
+  /* ---- CLAY: brand ----------------------------------------------------- */
+  --clay: #b8552f;             /* primary action, coach identity */
+  --clay-deep: #8f4123;        /* pressed / emphasis text on tint */
+  --clay-tint: #f6e3d8;        /* selected card fill */
+  --clay-edge: #e8c9b6;        /* selected card border */
+
+  /* ---- SEMANTIC -------------------------------------------------------- */
+  --gain: #2f7d5b;             /* on paper */
+  --gain-on-ink: #6fae8e;      /* on the stage */
+  --loss: #a8452c;             /* on paper */
+  --loss-on-ink: #d98a70;      /* on the stage */
+  --gain-tint: #e4efe8;        /* gain surface on paper */
+  --loss-tint: #f9ece5;        /* loss surface on paper */
+  --cash: #e0cfa4;             /* the allocation bar's reserve */
+  --cash-ink: #4a3f22;         /* text on --cash */
+
+  /* ---- TEXT ------------------------------------------------------------ */
+  --text: #22303d;             /* body on paper           12.3:1 */
+  --text-2: #4a5a67;           /* secondary on paper       6.5:1 */
+  --text-on-ink: #e8eef4;      /* body on stage           13.4:1 */
+  --text-on-ink-2: #9fb0bf;    /* secondary on stage       7.4:1 */
+  --text-on-ink-3: #7d8f9e;    /* muted on stage           4.9:1 */
+  --text-on-vela: #b9c2d8;     /* body in Vela's register  9.7:1 */
+  --text-on-vela-2: #8b93b5;   /* muted in Vela's register 5.7:1 */
+  /* Every pair above is verified >= 4.5:1. Do not introduce a text colour
+     without checking it, and never lighten --text-on-ink-3 further. */
+
+  /* ---- TYPE SCALE ------------------------------------------------------ */
+  --fs-xs: 12px;               /* uppercase labels */
+  --fs-sm: 13px;               /* secondary, captions */
+  --fs-base: 15px;             /* body */
+  --fs-md: 17px;               /* buttons, emphasis */
+  --fs-lg: 19px;               /* coach body */
+  --fs-xl: 23px;               /* coach lead */
+  --fs-2xl: 27px;              /* coach headline */
+  --fs-3xl: 34px;              /* price display */
+  --fs-4xl: 46px;              /* screen title */
+  --fs-display: 132px;         /* the opening statistic. One use, on purpose. */
+
+  /* ---- RADIUS ---------------------------------------------------------- */
+  --r-sm: 6px;                 /* chips, segmented controls */
+  --r-md: 12px;                /* cards, buttons — the default */
+  --r-lg: 14px;                /* panels */
+  --r-pill: 999px;
+
+  /* ---- SPACE (4px base) ------------------------------------------------ */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+
+  /* ---- TYPEFACES ------------------------------------------------------- */
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", monospace;
+
+  /* ---- MOTION ---------------------------------------------------------- */
+  --dur-fast: 120ms;           /* state change: hover, press */
+  --dur-base: 240ms;           /* panel or card transition */
+  --dur-replay: 200ms;         /* one bar of market auto-play */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Avatar palette. Decorative only — deliberately OUTSIDE the system above so a
+   reskin never has to reason about twelve faces. Never use these for UI. */
+:root {
+  --av-1: #b8552f; --av-2: #2f7d5b; --av-3: #3f5f7d; --av-4: #8a5a8f;
+  --av-5: #a8452c; --av-6: #4a5a67; --av-7: #7d6a3f; --av-8: #2f6f7d;
+  --av-9: #8f6b4a; --av-10: #5c4a7d; --av-11: #3f7d5f; --av-12: #7d3f5c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --ease: linear; }
+  /* --dur-replay is deliberately NOT zeroed: the market auto-play is content,
+     not decoration. Pause it instead, via the replay controls. */
+}
+
+/* ---------------------------------------------------------------------------
+   MIGRATION ALIASES
+
+   index.css currently uses a dark blue/cyan palette with 99 var() references.
+   These aliases let the new system drop in without touching those 99 call
+   sites. Delete this block once index.css has been migrated to the names above.
+
+   NOTE the surface inversion: the existing app is dark everywhere. The new
+   direction is a light room containing a dark stage. --bg therefore flips from
+   near-black to paper, and any rule that assumed a dark body will need review.
+   That is the real cost of adopting this — see the audit.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: var(--paper-1);
+  --surface: var(--paper-0);
+  --elevated: var(--paper-2);
+  --border: var(--paper-3);
+  --muted: var(--text-2);
+  --dim: var(--text-2);
+  --blue: var(--clay);              /* primary action was blue, now clay */
+  --cyan: var(--clay-deep);         /* focus ring */
+  --green: var(--gain);
+  --green-text: var(--gain);
+  --amber: var(--vela-gold);
+  --amber-text: var(--clay-deep);
+  --red: var(--loss);
+  --red-text: var(--loss);
+  --radius: var(--r-md);
+}

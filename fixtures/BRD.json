@@ -1,7 +1,7 @@
 {
-  "symbol": "SPY",
-  "name": "S&P 500 ETF (synthetic replay)",
-  "blurb": "A broad index: gentle moves and shallow dips.",
+  "symbol": "BRD",
+  "name": "Broadline 500 Fund (synthetic replay)",
+  "blurb": "A broad index fund: gentle moves and shallow dips.",
   "volatility": "low",
   "synthetic": true,
   "generator": {
@@ -10,6 +10,7 @@
     "version": 1
   },
   "start_cursor": 30,
+  "start_cash": 10000.0,
   "meta": {
     "max_drawdown_pct": -2.3,
     "peak_bar": 31,

@@ -1,6 +1,6 @@
 {
-  "symbol": "KO",
-  "name": "Coca-Cola (synthetic replay)",
+  "symbol": "BRW",
+  "name": "Brightwater Coffee (synthetic replay)",
   "blurb": "Slow and steady: small moves, small dips.",
   "volatility": "low",
   "synthetic": true,
@@ -10,6 +10,7 @@
     "version": 1
   },
   "start_cursor": 30,
+  "start_cash": 10000.0,
   "meta": {
     "max_drawdown_pct": -2.3,
     "peak_bar": 38,

@@ -1,0 +1,91 @@
+{
+  "wager": {
+    "start_capital": 100.0,
+    "wish_line": 110.0,
+    "bust_line": 90.0,
+    "offer": "One hundred dollars. It was never yours, so you cannot truly lose it. Grow it by a tenth and I grant you one wish. Lose a tenth and I take it back, and you keep nothing but what you learned. Which, I suspect, you will undervalue."
+  },
+  "endings": [
+    {
+      "id": "hollow_wish",
+      "priority": 1,
+      "title": "The Hollow Wish",
+      "when": { "all": [
+        { "computed": "equity", "gte": 110 },
+        { "any": [ { "flag": "went_all_in" }, { "flag": "overtraded" } ] }
+      ]},
+      "speaker": "vela",
+      "lines": [
+        "You cleared my line. A wish, then, as promised.",
+        "Though I notice you got there by putting everything on one number and holding your breath."
+      ],
+      "next": "You got lucky. Luck is not a method, and it does not come twice. Spend the wish carefully.",
+      "coach_coda": "She's not wrong, and she's not being kind about it. You won this one. Next time the same move costs you."
+    },
+    {
+      "id": "wish_granted",
+      "priority": 2,
+      "title": "The Wish Granted",
+      "when": { "computed": "equity", "gte": 110 },
+      "speaker": "vela",
+      "lines": [
+        "You cleared my line, and you did it without flinching or gambling.",
+        "Name your wish."
+      ],
+      "next": "Take your time. I find the people who earn these ask for smaller things than the ones who don't.",
+      "coach_coda": "You did that with a plan, not a hunch. That's the part that repeats."
+    },
+    {
+      "id": "the_panic",
+      "priority": 3,
+      "title": "The Panic",
+      "when": { "flag": "panicked_at_trough" },
+      "speaker": "vela",
+      "lines": [
+        "You sold at the lowest point on the board. I'll take what's left.",
+        "Watch, though. This is what the days after looked like."
+      ],
+      "next": "The dip was temporary. Your decision inside it was not.",
+      "coach_coda": "Everyone does this once. The people who keep investing are the ones who did it once and understood why. You just did."
+    },
+    {
+      "id": "untouched_hundred",
+      "priority": 4,
+      "title": "The Untouched Hundred",
+      "when": { "computed": "trade_count", "eq": 0 },
+      "speaker": "vela",
+      "lines": [
+        "One hundred dollars, exactly as I left it. Not a cent lost.",
+        "Not a thing learned, either."
+      ],
+      "next": "Keeping every dollar and finding out nothing is the only way to truly lose here. Come back when you want to try.",
+      "coach_coda": "Nothing bad happened. Nothing happened at all. That's the version of this that costs the most over ten years, and nobody ever feels it."
+    },
+    {
+      "id": "cost_of_certainty",
+      "priority": 5,
+      "title": "The Cost of Certainty",
+      "when": { "computed": "equity", "lte": 90 },
+      "speaker": "vela",
+      "lines": [
+        "Beneath my line. I'll take it back, as we agreed.",
+        "You held your nerve while it fell, which is more than most manage. It simply fell further."
+      ],
+      "next": "That happens. It will happen again, and it is not a verdict on you.",
+      "coach_coda": "The money was never yours. What you know now is, and it doesn't go back in her pocket."
+    },
+    {
+      "id": "steady_hand",
+      "priority": 6,
+      "title": "The Steady Hand",
+      "when": null,
+      "speaker": "vela",
+      "lines": [
+        "Between my lines. By my terms, nothing happened at all.",
+        "You did not win my wager."
+      ],
+      "next": "You did something harder. You did not flinch, and you did not chase. I have no prize for that, which tells you something about my prizes.",
+      "coach_coda": "She's wrong about this one, and she knows it. Sitting still while a number goes red is the whole skill. You have it."
+    }
+  ]
+}

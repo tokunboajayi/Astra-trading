@@ -12,7 +12,7 @@ def client():
     return TestClient(main.app)
 
 
-def onboard(client, experience="new", symbol="AAPL"):
+def onboard(client, experience="new", symbol="HLX"):
     r = client.post("/api/onboarding", json={"experience": experience, "symbol": symbol})
     assert r.status_code == 200, r.text
     return r.json()["state"]
@@ -20,4 +20,4 @@ def onboard(client, experience="new", symbol="AAPL"):
 
 def order(client, side="BUY", qty=10, **extra):
     cursor = client.get("/api/state").json()["cursor"]
-    return client.post("/api/orders", json={"symbol": "AAPL", "side": side, "qty": qty, "as_of": cursor, **extra})
+    return client.post("/api/orders", json={"symbol": "HLX", "side": side, "qty": qty, "as_of": cursor, **extra})

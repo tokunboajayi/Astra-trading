@@ -141,7 +141,7 @@ try {
   await goto('http://127.0.0.1:8000/');
   check('onboarding card is shown', await visible('#onboarding'));
   check('app is hidden until onboarded', !(await visible('#app')));
-  check('five practice symbols offered', (await $$('#onboarding input[name=symbol]')) === 5);
+  check('every practice symbol is offered', (await $$('#onboarding input[name=symbol]')) === 6);
   check('no external fonts or CDN referenced', !(await ev(`[...document.querySelectorAll('link,script')].some(e => /googleapis|gstatic|cdn\\./.test(e.href || e.src))`)));
   await shot('01-onboarding');
   await click('#btnStart');
@@ -171,7 +171,7 @@ try {
   check('Confirm unlocks after 1.5 s', (await disabled('#btnConfirm')) === false, await text('#btnConfirm'));
   await click('#btnConfirm');
   await waitFor(`${q('#valCash')}.textContent === '$8,320.00'`, 'cash after buy');
-  check('cash is $8,320.00 and position is 10 x AAPL', has(await text('#valPosition'), '10'), await text('#valPosition'));
+  check('cash is $8,320.00 and position is 10 x HLX', has(await text('#valPosition'), '10'), await text('#valPosition'));
   check('position card warns there is no safety net', has(await text('#subPosition'), 'no safety net'), await text('#subPosition'));
   check('money-flow line leads with what can be lost', has(await text('#moneyFlow'), 'can lose value'), await text('#moneyFlow'));
   check('entry line drawn on the chart', has(await text('#chart'), 'Your entry $168.00'));
@@ -229,7 +229,7 @@ try {
   await waitFor(`${q('#valPosition')}.textContent === 'No position'`, 'position sold');
   check('cash is $9,832.00 after the stop fills', (await text('#valCash')) === '$9,832.00', await text('#valCash'));
   check('toast announces the safety net', has(await text('#toast'), 'safety net'), await text('#toast'));
-  check('money-flow explains the locked-in loss', has(await text('#moneyFlow'), 'sold 10 AAPL at $151.20') && has(await text('#moneyFlow'), '$168.00 loss'), await text('#moneyFlow'));
+  check('money-flow explains the locked-in loss', has(await text('#moneyFlow'), 'sold 10 HLX at $151.20') && has(await text('#moneyFlow'), '$168.00 loss'), await text('#moneyFlow'));
   await click('#btnAdv5'); await waitFor(`${q('#btnAdv5')}.disabled === false`, 'idle'); await click('#btnAdv1');
   await waitFor(`${q('#valDay')}.textContent.includes('Day 61')`, 'trough day');
   check('price is $132.96 at the trough', (await text('#valPrice')) === '$132.96', await text('#valPrice'));
@@ -244,13 +244,13 @@ try {
   await waitFor(`!${q('#onboarding')}.hidden`, 'onboarding after reset');
   check('reset returns to onboarding and hides the app', !(await visible('#app')));
   check('reset cleared the saved action log', await ev(`JSON.parse(localStorage.getItem('richher.session.v1')).log.length === 0`));
-  await ev(`${q('input[name=experience][value=experienced]')}.click(); ${q('input[name=symbol][value=TSLA]')}.click()`);
+  await ev(`${q('input[name=experience][value=experienced]')}.click(); ${q('input[name=symbol][value=VLT]')}.click()`);
   await click('#btnStart');
   await waitFor(`!${q('#app')}.hidden`, 'app for the experienced branch');
-  check('experienced branch starts at Tier 2 on TSLA, day 16', has(await ev(`${q('.tier-chip.is-active')}.textContent`), '2.') && has(await text('#valDay'), 'Day 16'), await text('#valDay'));
+  check('experienced branch starts at Tier 2 on VLT, day 16', has(await ev(`${q('.tier-chip.is-active')}.textContent`), '2.') && has(await text('#valDay'), 'Day 16'), await text('#valDay'));
   check('tier-gated ticket: Limit allowed, Stop locked', await ev(`(() => { const o = [...document.querySelectorAll('#ticketType option')]; return !o.find(x => x.value === 'LIMIT').disabled && o.find(x => x.value === 'STOP').disabled && /unlocks at Tier 3/.test(o.find(x => x.value === 'STOP').textContent); })()`));
   await click('#btnBuy'); await sleep(1700); await click('#btnConfirm');
-  await waitFor(`${q('#valPosition')}.textContent.includes('TSLA')`, 'TSLA bought');
+  await waitFor(`${q('#valPosition')}.textContent.includes('VLT')`, 'VLT bought');
   const cashBefore = await text('#valCash');
   const posBefore = await text('#valPosition');
 

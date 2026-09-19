@@ -1,6 +1,6 @@
 {
-  "symbol": "NKE",
-  "name": "Nike (synthetic replay)",
+  "symbol": "KIN",
+  "name": "Kinetic Apparel (synthetic replay)",
   "blurb": "A choppy consumer stock that drifts sideways with a mid-sized dip.",
   "volatility": "medium",
   "synthetic": true,
@@ -10,6 +10,7 @@
     "version": 1
   },
   "start_cursor": 25,
+  "start_cash": 10000.0,
   "meta": {
     "max_drawdown_pct": -15.1,
     "peak_bar": 18,

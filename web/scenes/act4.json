@@ -1,0 +1,175 @@
+{
+  "act": 4,
+  "title": "The market moves",
+  "chapter": 4,
+  "fixture": "NVX",
+  "premise": {
+    "entry_bar": 20,
+    "entry_price": 21.0,
+    "qty": 2,
+    "cash_after_buy": 58.0,
+    "note": "Act 3 ends with the half-in position: 2 shares of NVX at $21.00, $58.00 left in cash. Every dollar figure below is asserted against the fixture by server/tests/test_scenes.py."
+  },
+  "start": "act4.open",
+
+  "nodes": {
+    "act4.open": {
+      "speaker": "coach",
+      "stage": "chart.autoplay",
+      "at_bar": 20,
+      "lines": [
+        "You own 2 shares of Novexa now. Let's let some days go by and see what happens.",
+        "I'll go quiet for a bit — just watch the price move."
+      ],
+      "next": "Don't worry, I'll jump back in the moment there's something worth talking about.",
+      "respond": { "type": "continue", "label": "Start the market", "goto": "act4.drop5" }
+    },
+
+    "act4.drop5": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 28,
+      "facts": { "price": 19.81, "pnl": -2.38, "pnl_pct": -5.67, "market_value": 39.62 },
+      "lines": [
+        "Alright — it dipped.",
+        "Your 2 shares were worth $42.00. Right now they're worth $39.62."
+      ],
+      "loss": "$2.38",
+      "next": "That's a paper loss — it isn't real until you decide it is. You've got three ways to go, and none of them is the wrong one.",
+      "drawdown": true,
+      "recovery_shown": "act4.recovery",
+      "respond": {
+        "type": "choice",
+        "prompt": "What do you want to do?",
+        "options": [
+          { "id": "sell", "label": "Sell — take the $2.38 loss", "goto": "act4.chose.sell" },
+          { "id": "hold", "label": "Hold — stay in", "goto": "act4.chose.hold" },
+          { "id": "more", "label": "Buy 1 more at $19.81", "goto": "act4.chose.more" }
+        ]
+      }
+    },
+
+    "act4.chose.sell": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 28,
+      "facts": { "equity": 97.62 },
+      "lines": [
+        "Sold. The $2.38 is real now, and you've got $97.62 sitting safely in cash.",
+        "Some people will call that the scared choice. It's not — it's the choice that lets you sleep tonight, and a person who sleeps keeps investing tomorrow."
+      ],
+      "next": "Let's see what the market got up to after you left.",
+      "respond": { "type": "continue", "label": "Keep watching", "goto": "act4.resume" }
+    },
+
+    "act4.chose.hold": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 28,
+      "facts": { "equity": 97.62 },
+      "lines": [
+        "You held on. Nothing's really changed except a number on a screen.",
+        "You still own the same 2 shares of the same company. Novexa didn't get worse this week — only the price did."
+      ],
+      "next": "Let's see if that was the right call.",
+      "respond": { "type": "continue", "label": "Keep watching", "goto": "act4.resume" }
+    },
+
+    "act4.chose.more": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 28,
+      "facts": { "equity": 97.62, "avg_price": 20.6, "qty": 3 },
+      "lines": [
+        "You picked up 1 more at $19.81. You're at 3 shares now, averaging $20.60 each.",
+        "That also means more of your $100 is riding on this one company. Both things are true at once — more upside, more exposure."
+      ],
+      "next": "Let's see how that plays out.",
+      "respond": { "type": "continue", "label": "Keep watching", "goto": "act4.resume" }
+    },
+
+    "act4.resume": {
+      "speaker": "coach",
+      "stage": "chart.autoplay",
+      "at_bar": 28,
+      "lines": ["Okay, running again."],
+      "next": "I'll pause it when it's worth pausing.",
+      "respond": { "type": "continue", "label": "Run", "goto": "act4.deep" }
+    },
+
+    "act4.deep": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 33,
+      "facts": { "price": 18.9, "pnl": -4.2, "pnl_pct": -10.0 },
+      "lines": [
+        "It kept sliding. Five more days, and Novexa is down a full ten percent from where you bought in.",
+        "If you'd held, that $42.00 is worth $37.80 today.",
+        "I'll be honest — this is the moment where most people sell and never come back."
+      ],
+      "loss": "$4.20",
+      "next": "I'm not going to tell you what to do here. But whatever you pick, I'll show you exactly what happened next.",
+      "drawdown": true,
+      "recovery_shown": "act4.recovery",
+      "respond": {
+        "type": "choice",
+        "prompt": "Same three choices. Still no wrong answer.",
+        "options": [
+          { "id": "sell", "label": "Sell — get out here", "goto": "act4.compare" },
+          { "id": "hold", "label": "Hold — ride it out", "goto": "act4.compare" },
+          { "id": "more", "label": "Buy more at $18.90", "goto": "act4.compare" }
+        ]
+      }
+    },
+
+    "act4.compare": {
+      "speaker": "coach",
+      "stage": "chart.compare",
+      "at_bar": 33,
+      "facts": { "sell": 97.62, "hold": 95.8, "more": 94.89, "spread": 2.73 },
+      "lines": [
+        "Right now, at the lowest point, those three choices are $2.73 apart.",
+        "Selling early looks like a smart move. Buying more looks like a mistake.",
+        "Hold that thought for a second."
+      ],
+      "next": "Let's run it all the way to the end and see how it actually shakes out.",
+      "respond": { "type": "continue", "label": "Run to the end", "goto": "act4.recovery" }
+    },
+
+    "act4.recovery": {
+      "speaker": "coach",
+      "stage": "chart.compare",
+      "at_bar": 89,
+      "facts": { "price": 26.25, "sell": 97.62, "hold": 110.5, "more": 116.94, "spread": 19.32 },
+      "lines": [
+        "Fifty-six days later, here's where things landed.",
+        "Sold: $97.62. Held: $110.50. Bought more: $116.94.",
+        "At the bottom those three were $2.73 apart. Now they're $19.32 apart — and the one that looked smartest is the one that ended up last."
+      ],
+      "next": "Selling at the low turned a dip you could have waited out into the only permanent loss on the board.",
+      "respond": { "type": "continue", "label": "So what do I take from that?", "goto": "act4.lesson" }
+    },
+
+    "act4.lesson": {
+      "speaker": "coach",
+      "stage": "chart.compare",
+      "at_bar": 89,
+      "facts": { "best_outcome": 116.94, "held_outcome": 110.5, "started_with": 100.0 },
+      "lines": [
+        "Both versions of you who stayed in crossed $110 and won Vela her wager. The one who sold ended up below where she started.",
+        "Novexa was the same company the whole way through. The only thing that changed on the day you'd have sold was how it felt."
+      ],
+      "next": "That's the lesson: the dip was temporary, and the decision you make inside it is the part that lasts.",
+      "respond": { "type": "reflection", "prompt": "Anything you're thinking that you'd like to jot down before we move on? This stays just between us.", "optional": true, "goto": "act4.close" }
+    },
+
+    "act4.close": {
+      "speaker": "coach",
+      "stage": "chart.paused",
+      "at_bar": 89,
+      "lines": ["One more thing — and it's the part almost everyone tells me they don't know."],
+      "next": "I think you're about to prove that wrong.",
+      "respond": { "type": "continue", "label": "Go on", "goto": "act5.open" }
+    }
+  }
+}

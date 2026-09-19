@@ -1,6 +1,6 @@
 {
-  "symbol": "TSLA",
-  "name": "Tesla (synthetic replay)",
+  "symbol": "VLT",
+  "name": "Voltaic Motors (synthetic replay)",
   "blurb": "Big swings both ways: the same time window, a much larger potential loss.",
   "volatility": "high",
   "synthetic": true,
@@ -10,6 +10,7 @@
     "version": 1
   },
   "start_cursor": 15,
+  "start_cash": 10000.0,
   "meta": {
     "max_drawdown_pct": -28.6,
     "peak_bar": 16,

@@ -271,6 +271,9 @@ async function advance(n) {
 async function reset() {
   try {
     const data = await call('POST', '/api/reset');
+    // Drop the saved log outright. apply() overwrites it anyway, but being explicit means a
+    // failure between here and there can never leave the previous participant's replay behind.
+    try { localStorage.removeItem(STORE_KEY); } catch (_) { /* storage may be blocked */ }
     previewTier = null; lastCheck = null; modalKey = null;
     apply(data.state);
     notify('Demo reset. Ready for the next person.');

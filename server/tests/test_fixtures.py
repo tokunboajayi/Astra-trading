@@ -1,4 +1,4 @@
-"""The fixtures are generated, reproducible, synthetic, and AAPL's dip is guaranteed."""
+"""The fixtures are generated, reproducible, synthetic, and HLX's dip is guaranteed."""
 
 import json
 from pathlib import Path
@@ -8,7 +8,7 @@ import pytest
 from scripts import build_fixtures
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures"
-SYMBOLS = ["AAPL", "SPY", "NKE", "TSLA", "KO"]
+SYMBOLS = ["HLX", "BRD", "KIN", "VLT", "BRW", "NVX"]
 
 
 def load(symbol):
@@ -44,14 +44,14 @@ def worst_drawdown(closes):
 
 
 def test_aapl_has_the_verified_22_7_percent_drawdown_in_bars_45_to_60():
-    closes = [b["c"] for b in load("AAPL")["bars"]]
+    closes = [b["c"] for b in load("HLX")["bars"]]
     dd, peak, trough = worst_drawdown(closes)
     assert (round(dd, 1), peak, trough) == (-22.7, 45, 60)
     assert closes.index(max(closes)) == 45 and closes.index(min(closes)) == 60
 
 
 def test_aapl_demo_beats_are_recorded_and_true():
-    fx = load("AAPL")
+    fx = load("HLX")
     demo, bars = fx["meta"]["demo"], fx["bars"]
     assert demo["entry_bar"] == fx["start_cursor"] == 40 and demo["entry_price"] == 168.0
     assert demo["prompt_bar"] == 53 and demo["prompt_price"] == bars[53]["c"] == 154.17
@@ -61,7 +61,7 @@ def test_aapl_demo_beats_are_recorded_and_true():
 
 
 def test_ma_crossover_signals_are_precomputed_ordered_and_alternate():
-    strat = load("AAPL")["strategy"]
+    strat = load("HLX")["strategy"]
     sigs = strat["signals"]
     assert strat["fast"] == 5 and strat["slow"] == 20 and sigs
     assert [s["bar"] for s in sigs] == sorted(s["bar"] for s in sigs) and sigs[0]["bar"] >= 20

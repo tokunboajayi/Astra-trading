@@ -1,6 +1,6 @@
 {
-  "symbol": "AAPL",
-  "name": "Apple (synthetic replay)",
+  "symbol": "HLX",
+  "name": "Helix Devices (synthetic replay)",
   "blurb": "A steady climb, then a sharp pullback. The guided demo runs on this one.",
   "volatility": "medium",
   "synthetic": true,
@@ -10,6 +10,7 @@
     "version": 1
   },
   "start_cursor": 40,
+  "start_cash": 10000.0,
   "meta": {
     "max_drawdown_pct": -22.7,
     "peak_bar": 45,

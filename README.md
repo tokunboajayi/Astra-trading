@@ -8,7 +8,7 @@
 
 <p>
   <img src="docs/demo-desktop.png" alt="Rich-HER after a safety net sold at $151.20: the money-flow line reports the locked-in loss and the shadow line shows what ignoring the net would have cost" width="62%">
-  <img src="docs/demo-phone.png" alt="The safety-net prompt on a phone: your AAPL position is down 8.2%, with one-tap protection" width="26%">
+  <img src="docs/demo-phone.png" alt="The safety-net prompt on a phone: your HLX position is down 8.2%, with one-tap protection" width="26%">
 </p>
 
 ## What it does
@@ -96,7 +96,7 @@ The frontend finds the API at `http://127.0.0.1:8000` unless it is served from p
 
 ## The 2:15 demo
 
-Buy 10 AAPL at **$168.00** → fast-forward until the prompt appears on Day 54 (**$154.17**, down $138.30) → protect the position at **$151.20** → the net sells on Day 55 → by Day 61 the price is **$132.96** and the shadow line says the net saved **$182.40**. Full script with timings: [SPEC.md §12](SPEC.md#12-demo-script-215).
+Buy 10 HLX at **$168.00** → fast-forward until the prompt appears on Day 54 (**$154.17**, down $138.30) → protect the position at **$151.20** → the net sells on Day 55 → by Day 61 the price is **$132.96** and the shadow line says the net saved **$182.40**. Full script with timings: [SPEC.md §12](SPEC.md#12-demo-script-215).
 
 ## Team and ownership
 

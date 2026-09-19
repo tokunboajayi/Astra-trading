@@ -30,7 +30,7 @@ Every order type, indicator and action leads with its loss profile. Before expla
 ### Pillar 2: Deterministic replay ("walk into the dip")
 Live paper trading means weeks of waiting for a meaningful move and an unpredictable demo. Rich-HER replays **deterministic 90-day price paths** that a user advances one day at a time, with the future hidden, so a pullback takes minutes to experience in a safe, guided sandbox.
 
-The paths are **synthetic**. A seeded script generates them, pinned to chosen anchor prices, and the AAPL path carries a built-in **−22.7% drawdown** so the teaching moment is guaranteed rather than hoped for. The product labels the data as synthetic everywhere it appears. Fast-forward stops the instant something happens, so a fill or the safety-net prompt can never be skipped.
+The paths are **synthetic**. A seeded script generates them, pinned to chosen anchor prices, and the HLX path carries a built-in **−22.7% drawdown** so the teaching moment is guaranteed rather than hoped for. The product labels the data as synthetic everywhere it appears. Fast-forward stops the instant something happens, so a fill or the safety-net prompt can never be skipped.
 
 ### Pillar 3: Structural progressive complexity (tiers)
 Complex tools are neither hidden nor dumped on day one. Tiers unlock by demonstrating understanding, not by trading more.
@@ -46,7 +46,7 @@ Beginners can use the **tier scrub** to *preview* what they unlock. It is a read
 ### Pillar 4: The proactive safety net
 When a position is down 8%, Rich-HER intervenes with a one-tap prompt built from the user's own numbers:
 
-> *"Your AAPL position is down 8.2%. You bought 10 at $168.00; it is now $154.17, so you are down $138.30. If it falls to $151.20 your shares are sold automatically. If it dips there and bounces back, you will have sold at the bottom."*
+> *"Your HLX position is down 8.2%. You bought 10 at $168.00; it is now $154.17, so you are down $138.30. If it falls to $151.20 your shares are sold automatically. If it dips there and bounces back, you will have sold at the bottom."*
 
 The safety net is a **guardrail available at every tier**. Tiers unlock *control over* protection, never the protection itself. After it acts, a **shadow benchmark** compares the outcome with ignoring the net. In the demo replay it saves $182.40 at the trough; if the replay runs on to Day 90 the price recovers and the net has cost $68.00. Showing both is the point: protection has a price.
 

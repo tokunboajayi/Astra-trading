@@ -77,15 +77,15 @@ Five curated symbols, each 90 daily bars of `{day, o, h, l, c}`. Deterministic: 
 
 | Symbol | Character | Start bar | Worst drawdown |
 |---|---|---|---|
-| **AAPL** | Steady climb, then a sharp pullback. The guided demo. | 40 (Day 41) | **−22.7%** (bars 45 → 60) |
-| KO | Slow and steady | 30 | −2.3% |
-| NKE | Choppy, mid-sized dip | 25 | −15.1% |
-| SPY | Broad index, shallow dips | 30 | −2.3% |
-| TSLA | Big swings both ways | 15 | −28.6% |
+| **HLX** | Steady climb, then a sharp pullback. The guided demo. | 40 (Day 41) | **−22.7%** (bars 45 → 60) |
+| BRW | Slow and steady | 30 | −2.3% |
+| KIN | Choppy, mid-sized dip | 25 | −15.1% |
+| BRD | Broad index, shallow dips | 30 | −2.3% |
+| VLT | Big swings both ways | 15 | −28.6% |
 
-**File shape** (`fixtures/AAPL.json`): `symbol`, `name`, `blurb`, `volatility`, `synthetic: true`, `generator {script, seed, version}`, `start_cursor`, `meta {max_drawdown_pct, peak_bar, trough_bar, first_close, last_close, demo?}`, `strategy {name, fast, slow, signals[]}`, `bars[]`.
+**File shape** (`fixtures/HLX.json`): `symbol`, `name`, `blurb`, `volatility`, `synthetic: true`, `generator {script, seed, version}`, `start_cursor`, `meta {max_drawdown_pct, peak_bar, trough_bar, first_close, last_close, demo?}`, `strategy {name, fast, slow, signals[]}`, `bars[]`.
 
-**How they are made.** Each path is pinned to hand-chosen anchor closes, and seeded noise fills the gaps (a Brownian bridge between anchors). For AAPL the generator searches seeds until every guarantee below holds (seed 1001):
+**How they are made.** Each path is pinned to hand-chosen anchor closes, and seeded noise fills the gaps (a Brownian bridge between anchors). For HLX the generator searches seeds until every guarantee below holds (seed 1001):
 
 - worst drawdown is −22.7% and spans exactly bars 45 → 60; bar 45 is the highest close and bar 60 the lowest;
 - a buy at bar 40 ($168.00) reaches the −8% prompt on bar 53 while the −10% stop can still protect, and the stop fills on bar 54 at exactly $151.20 (no gap).
@@ -161,7 +161,7 @@ JSON over HTTP. **12 live routes + 2 mock-only stubs = 14**, frozen and asserted
 | # | Route | Body / query | Success |
 |---|---|---|---|
 | 1 | `GET /api/state` | none | Full snapshot ([8.2](#82-the-snapshot)). |
-| 2 | `POST /api/onboarding` | `{experience: "new"\|"experienced", symbol?: "AAPL"}` | `{state}`. `new` → Tier 1, `experienced` → Tier 2; cursor = the symbol's `start_cursor`. |
+| 2 | `POST /api/onboarding` | `{experience: "new"\|"experienced", symbol?: "HLX"}` | `{state}`. `new` → Tier 1, `experienced` → Tier 2; cursor = the symbol's `start_cursor`. |
 | 3 | `POST /api/advance` | `{n: 1..30}` | `{advanced, events[], state}`. Stops early on a fill or a prompt. |
 | 4 | `POST /api/orders` | `{symbol, side, type?, qty, limit_price?, stop_price?, as_of?}` | `{order, fills[], state}`. |
 | 5 | `DELETE /api/orders/{id}` | none | `{order, state}` (cancels a resting order). |
@@ -184,29 +184,29 @@ JSON over HTTP. **12 live routes + 2 mock-only stubs = 14**, frozen and asserted
 ```jsonc
 {
   "boot_id": "a3f1c2d9", "onboarded": true, "participant": 1, "action_seq": 2,
-  "symbol": "AAPL", "tier": "beginner", "tiers_unlocked": ["beginner"],
+  "symbol": "HLX", "tier": "beginner", "tiers_unlocked": ["beginner"],
   "cursor": 40, "day": 41, "total_days": 90, "finished": false, "price": 168.0,
   "bars": [ { "day": 1, "o": 150.13, "h": 150.86, "l": 149.27, "c": 150.0 } /* … up to today */ ],
   "strategy": { "name": "MA crossover (5/20)", "signals": [ /* up to today */ ] },
   "cash": 8320.0, "equity": 10000.0, "total_pnl": 0.0, "total_pnl_pct": 0.0,
   "unrealized_pnl": 0.0, "unrealized_pnl_pct": 0.0, "realized_pnl": 0.0,
-  "positions": [ { "symbol": "AAPL", "qty": 10, "avg_price": 168.0, "price": 168.0,
+  "positions": [ { "symbol": "HLX", "qty": 10, "avg_price": 168.0, "price": 168.0,
                    "market_value": 1680.0, "unrealized_pnl": 0.0, "unrealized_pnl_pct": 0.0,
                    "protected": false, "stop_price": null } ],
   "open_orders": [], "trades": [],
   "shadow": { "active": false, "kept_qty": 0, "equity": 10000.0, "delta_vs_you": 0.0, "saved_by_safety_net": 0.0 },
   "prompts": [],            // safety-net candidates; non-empty blocks /api/advance
   "pending_check": "downside", "checks_passed": [],
-  "events": [ { "seq": 2, "day": 41, "type": "FILL", "message": "Day 41: bought 10 AAPL at $168.00." } ],
-  "replay_log": [ { "method": "POST", "path": "/api/onboarding", "body": { "experience": "new", "symbol": "AAPL" } } ],
+  "events": [ { "seq": 2, "day": 41, "type": "FILL", "message": "Day 41: bought 10 HLX at $168.00." } ],
+  "replay_log": [ { "method": "POST", "path": "/api/onboarding", "body": { "experience": "new", "symbol": "HLX" } } ],
   "fixture_meta": null      // { max_drawdown_pct, synthetic } only once finished
 }
 ```
 
-A safety-net prompt (`prompts[]`), as the modal receives it (AAPL bought at $168.00, on Day 54):
+A safety-net prompt (`prompts[]`), as the modal receives it (HLX bought at $168.00, on Day 54):
 
 ```json
-{ "symbol": "AAPL", "qty": 10, "avg_price": 168.0, "price": 154.17, "loss_pct": -8.23,
+{ "symbol": "HLX", "qty": 10, "avg_price": 168.0, "price": 154.17, "loss_pct": -8.23,
   "loss_dollars": -138.3, "stop_price": 151.2, "stop_pct": -10.0, "stop_loss_dollars": -168.0,
   "can_protect": true }
 ```
@@ -250,21 +250,21 @@ Two comprehension checks (`web/checks.json`, V1 copy). A check appears once its 
 4. **Confirm** sends `POST /api/orders` with `as_of`. Failures show the server's message and keep the ticket open.
 
 ### 10.2 Money-flow line (`money-flow.js`)
-One plain-English report under the chart, always leading with what can be lost: *"$1,680.00 of your $10,000.00 is in AAPL, and that part can lose value."* After a safety-net sale: *"Your safety net sold 10 AAPL at $151.20, locking in a $168.00 loss. Had you kept those shares you would be $182.40 worse off today."*
+One plain-English report under the chart, always leading with what can be lost: *"$1,680.00 of your $10,000.00 is in HLX, and that part can lose value."* After a safety-net sale: *"Your safety net sold 10 HLX at $151.20, locking in a $168.00 loss. Had you kept those shares you would be $182.40 worse off today."*
 
 ### 10.3 Safety-net prompt (`safety-net.js`)
 Every number comes from the candidate object (no hard-coded dollar amounts). Exact copy for the demo position:
 
-- **Title:** "Your AAPL position is down 8.2%"
-- **Body:** "You bought 10 AAPL at $168.00. It is now $154.17, so you are down $138.30 (−8.2%). Prices can keep falling."
-- **Callout:** "If AAPL falls to $151.20 (10% below your entry), your shares are sold automatically. That caps this loss at $168.00. If it dips there and bounces back, you will have sold at the bottom."
+- **Title:** "Your HLX position is down 8.2%"
+- **Body:** "You bought 10 HLX at $168.00. It is now $154.17, so you are down $138.30 (−8.2%). Prices can keep falling."
+- **Callout:** "If HLX falls to $151.20 (10% below your entry), your shares are sold automatically. That caps this loss at $168.00. If it dips there and bounces back, you will have sold at the bottom."
 - **Primary button (one label everywhere):** "Protect my position (sell at $151.20)"
 - **Secondary:** "Keep holding (accept the full risk)"
 - If `can_protect` is false, the primary becomes "Sell my 10 shares now ($X each)".
 - The modal blocks fast-forward (server: `PROMPT_PENDING`). It has no dismiss-by-click-away.
 
 ### 10.4 Onboarding (`tier-picker.js`)
-Two questions on one card: experience (`new` / `experienced`) and one of five symbols (AAPL pre-selected, marked as the guided walk-through). States that prices are synthetic.
+Two questions on one card: experience (`new` / `experienced`) and one of five symbols (HLX pre-selected, marked as the guided walk-through). States that prices are synthetic.
 
 ## 11. Hints contract (`hint.js`, `hints.json`)
 
@@ -283,7 +283,7 @@ Clock: **T+m:ss** is time into the demo. **H+n** is reserved for the hackathon c
 
 | T+ | Step | You do | The screen shows |
 |---|---|---|---|
-| 0:00 | **1. Introduction** | Reset → "I'm brand new" + AAPL → Start | Tier 1, Day 41, $10,000.00, AAPL line chart, the future hidden. |
+| 0:00 | **1. Introduction** | Reset → "I'm brand new" + HLX → Start | Tier 1, Day 41, $10,000.00, HLX line chart, the future hidden. |
 | 0:25 | **2. Downside buy** | Tap **Buy** 10, wait for the lock, Confirm. Answer the quick check ("$900") | Downside box, "Most you could lose: $1,680.00". Fill at **$168.00**, cash $8,320.00. Tier 2 unlocks. |
 | 1:00 | **3. Tier scrub** | Tap "3. Strategic Mastery", say the sentence from [section 7](#7-tiers-and-gating), exit preview | Candlesticks and MA signals as a read-only preview. |
 | 1:20 | **4. Walk into the dip** | **Fast-forward**. It stops by itself. Tap **Protect my position** | Day 54, **$154.17**: "down 8.2%… down $138.30". Net set at **$151.20**. |

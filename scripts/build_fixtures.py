@@ -9,7 +9,7 @@ The prices are not real market data. Each path is pinned to hand-chosen anchor
 closes and filled in with seeded noise (a Brownian bridge between anchors), so
 every run on every machine produces byte-identical files.
 
-AAPL is the guided-demo symbol. Its generator keeps searching seeds until the
+HLX is the guided-demo symbol. Its generator keeps searching seeds until the
 path has a -22.7% max drawdown between bars 45 and 60 AND the demo beats in
 SPEC.md section 12 hold (safety-net prompt, then the stop fill at its stop price).
 
@@ -28,38 +28,49 @@ OUT_DIR = ROOT / "fixtures"
 
 N_BARS = 90
 GENERATOR_VERSION = 1
-DRAWDOWN_TARGET_PCT = -22.7           # AAPL, bars 45 -> 60
+DRAWDOWN_TARGET_PCT = -22.7           # HLX, bars 45 -> 60
 FAST, SLOW = 5, 20                    # MA-crossover windows
 PROMPT_PCT, STOP_PCT = -8.0, -10.0    # mirrors server/sim_engine.py
 SEED_SEARCH_LIMIT = 20000
 
 SYMBOLS = [
     {
-        "symbol": "AAPL", "name": "Apple (synthetic replay)", "volatility": "medium",
+        "symbol": "HLX", "name": "Helix Devices (synthetic replay)", "volatility": "medium",
         "blurb": "A steady climb, then a sharp pullback. The guided demo runs on this one.",
         "start_cursor": 40, "seed": 1000, "sigma": 0.009, "gap": 0.003, "wick": 0.004,
         "anchors": [(0, 150.00), (40, 168.00), (45, 172.00), (60, 132.96), (89, 158.00)],
     },
     {
-        "symbol": "SPY", "name": "S&P 500 ETF (synthetic replay)", "volatility": "low",
-        "blurb": "A broad index: gentle moves and shallow dips.",
+        "symbol": "BRD", "name": "Broadline 500 Fund (synthetic replay)", "volatility": "low",
+        "blurb": "A broad index fund: gentle moves and shallow dips.",
         "start_cursor": 30, "seed": 2000, "sigma": 0.0045, "gap": 0.0015, "wick": 0.0015,
         "anchors": [(0, 480.00), (30, 492.00), (60, 486.00), (89, 505.00)],
     },
     {
-        "symbol": "NKE", "name": "Nike (synthetic replay)", "volatility": "medium",
+        "symbol": "KIN", "name": "Kinetic Apparel (synthetic replay)", "volatility": "medium",
         "blurb": "A choppy consumer stock that drifts sideways with a mid-sized dip.",
         "start_cursor": 25, "seed": 3000, "sigma": 0.011, "gap": 0.004, "wick": 0.005,
         "anchors": [(0, 92.00), (20, 98.00), (50, 88.00), (70, 90.00), (89, 95.00)],
     },
     {
-        "symbol": "TSLA", "name": "Tesla (synthetic replay)", "volatility": "high",
+        "symbol": "VLT", "name": "Voltaic Motors (synthetic replay)", "volatility": "high",
         "blurb": "Big swings both ways: the same time window, a much larger potential loss.",
         "start_cursor": 15, "seed": 4000, "sigma": 0.02, "gap": 0.008, "wick": 0.010,
         "anchors": [(0, 240.00), (15, 262.00), (35, 196.00), (60, 228.00), (89, 215.00)],
     },
     {
-        "symbol": "KO", "name": "Coca-Cola (synthetic replay)", "volatility": "low",
+        # The "patience is rewarded" fixture. Every other symbol ends flat or down, which made
+        # every outcome in the product a loss (see STORY.md section 3). This one dips -8.6%
+        # first - so the lesson still lands - then recovers and finishes +25%.
+        # Tuned so a half-in position ($42 of $100) just clears the +10% wish line at $110.50.
+        "symbol": "NVX", "name": "Novexa Systems (synthetic replay)", "volatility": "medium",
+        "blurb": "Dips early, then climbs. Buy and hold is rewarded on this one.",
+        "start_cursor": 20, "seed": 6000, "sigma": 0.010, "gap": 0.003, "wick": 0.004,
+        "start_cash": 100.00,
+        "anchors": [(0, 18.50), (20, 21.00), (32, 19.20), (50, 21.40), (70, 24.00), (89, 26.25)],
+    },
+    {
+        "symbol": "BRW", "name": "Brightwater Coffee (synthetic replay)", "volatility": "low",
         "blurb": "Slow and steady: small moves, small dips.",
         "start_cursor": 30, "seed": 5000, "sigma": 0.0035, "gap": 0.0012, "wick": 0.0012,
         "anchors": [(0, 62.00), (45, 64.50), (89, 66.00)],
@@ -186,7 +197,7 @@ def build_symbol(cfg):
         closes = build_closes(cfg, rng)
         bars = build_bars(cfg, closes, rng)
         problems = problems_common(bars)
-        if cfg["symbol"] == "AAPL":
+        if cfg["symbol"] == "HLX":
             problems += problems_aapl(cfg, bars)
         if not problems:
             return seed, bars
@@ -199,14 +210,14 @@ def build_fixture(cfg):
     dd, peak_i, trough_i = max_drawdown(closes)
     meta = {"max_drawdown_pct": round(dd, 1), "peak_bar": peak_i, "trough_bar": trough_i,
             "first_close": closes[0], "last_close": closes[-1]}
-    if cfg["symbol"] == "AAPL":
+    if cfg["symbol"] == "HLX":
         meta["demo"] = demo_beats(bars, cfg["start_cursor"])
     return {
         "symbol": cfg["symbol"], "name": cfg["name"], "blurb": cfg["blurb"],
         "volatility": cfg["volatility"], "synthetic": True,
         "generator": {"script": "scripts/build_fixtures.py", "seed": seed,
                       "version": GENERATOR_VERSION},
-        "start_cursor": cfg["start_cursor"], "meta": meta,
+        "start_cursor": cfg["start_cursor"], "start_cash": cfg.get("start_cash", 10000.00), "meta": meta,
         "strategy": {"name": f"MA crossover ({FAST}/{SLOW})", "fast": FAST, "slow": SLOW,
                      "signals": ma_signals(closes)},
         "bars": bars,
@@ -242,8 +253,8 @@ def main(argv):
         m = fx["meta"]
         print(f"{name:11} seed={fx['generator']['seed']:<5} max drawdown {m['max_drawdown_pct']:>6}% "
               f"(bars {m['peak_bar']}->{m['trough_bar']})  start bar {fx['start_cursor']}")
-    demo = json.loads(built["AAPL.json"])["meta"]["demo"]
-    print("AAPL demo beats:", json.dumps(demo))
+    demo = json.loads(built["HLX.json"])["meta"]["demo"]
+    print("HLX demo beats:", json.dumps(demo))
     return 0
 
 

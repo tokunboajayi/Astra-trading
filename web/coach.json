@@ -1,0 +1,81 @@
+{
+  "persona": {
+    "id": "nia",
+    "name": "Nia Okafor",
+    "short_name": "Nia",
+    "role": "Your coach",
+    "avatar": "coach-nia",
+    "bio": "Nia spent nine years as a credit union teller, watching other people's money move and figuring investing was something other people did. She opened her first brokerage account at 34, lost money her first month, and kept going anyway. Now she helps people start before they feel ready — because waiting to feel ready is the most expensive thing most people ever do.",
+    "voice_rules": [
+      "Talks in dollars, never in jargon, and explains a term in plain words the first time she uses it.",
+      "Never says 'obviously', 'simply', 'just', or 'of course'.",
+      "Never congratulates a correct answer more than a wrong one.",
+      "Names a loss plainly, warmly, then immediately says what to do about it.",
+      "Uses the player's name sparingly: once per act, never in a sentence about a loss.",
+      "Sounds like a friend explaining something over coffee, not a manual."
+    ]
+  },
+
+  "controls": {
+    "replay.play": {
+      "lines": ["This plays the market forward, one day at a time.", "It'll stop on its own the moment something worth seeing happens — you won't miss anything."],
+      "next": "Press it whenever you're ready. Nothing moves until you do.",
+      "auto_pop": true
+    },
+    "replay.pause": {
+      "lines": ["This freezes the market so you can breathe and think."],
+      "next": "There's no clock running anywhere in here. Take all the time you want.",
+      "auto_pop": false
+    },
+    "chart.timeframe": {
+      "lines": ["This changes how much history you're looking at."],
+      "next": "Try the wider view — the shape usually makes more sense zoomed out.",
+      "auto_pop": true
+    },
+    "chart.crosshair": {
+      "lines": ["Hover anywhere on the line and it'll tell you the exact price that day."],
+      "next": "Handy when you want an actual number, not only a shape.",
+      "auto_pop": true
+    },
+    "chart.candles": {
+      "lines": ["This swaps the line for candlesticks.", "Each candle covers one day: where the price opened, where it closed, and the highest and lowest it touched in between."],
+      "next": "Think of it this way — the line tells you the story, and candles show you the back-and-forth underneath it.",
+      "auto_pop": true
+    },
+    "ticket.buy": {
+      "lines": ["This spends some of your $100 on shares.", "It's practice money. None of it is real, and none of it can follow you home."],
+      "next": "You'll see the exact cost before anything happens — nothing sneaks past you.",
+      "auto_pop": true
+    },
+    "ticket.sell": {
+      "lines": ["This turns your shares back into cash, at today's price."],
+      "next": "Selling is the moment a paper loss becomes a real one — and a paper gain becomes a real one too. Same button, either direction.",
+      "auto_pop": true
+    },
+    "ticket.qty": {
+      "lines": ["How many shares you'd like."],
+      "next": "There's no rush to go big. A share or two is plenty to feel what's happening.",
+      "auto_pop": true
+    },
+    "ticket.confirm": {
+      "lines": ["This is the button that actually places the order."],
+      "next": "The cost is right there above it — nothing hidden, nothing happens until you tap it.",
+      "auto_pop": true
+    },
+    "portfolio.cash": {
+      "lines": ["The part of your $100 you haven't put anywhere yet."],
+      "next": "Cash can't lose value in here — and it can't gain any either. It's sitting still, on purpose.",
+      "auto_pop": true
+    },
+    "portfolio.position": {
+      "lines": ["The shares you own right now, plus what you paid for them on average."],
+      "next": "That average price is the line every future gain or loss gets measured against.",
+      "auto_pop": true
+    },
+    "portfolio.pnl": {
+      "lines": ["What your shares are worth today, compared to what you paid for them."],
+      "next": "It's still only a number on a screen — it becomes real the day you sell.",
+      "auto_pop": true
+    }
+  }
+}

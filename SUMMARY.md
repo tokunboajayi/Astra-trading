@@ -31,7 +31,7 @@
 
 | Area | Files | Notes |
 |---|---|---|
-| **Fixtures** | `scripts/build_fixtures.py`, `fixtures/{AAPL,SPY,NKE,TSLA,KO}.json` | 90 synthetic bars each. Seeded and anchor-pinned, so byte-identical on every machine. `--check` fails if a file is stale or hand-edited. |
+| **Fixtures** | `scripts/build_fixtures.py`, `fixtures/{HLX,BRD,KIN,VLT,BRW}.json` | 90 synthetic bars each. Seeded and anchor-pinned, so byte-identical on every machine. `--check` fails if a file is stale or hand-edited. |
 | **Engine** | `server/sim_engine.py` | Pure rules, no imports. Market/limit/stop fills, safety-net trigger, shadow benchmark. |
 | **API** | `server/main.py` | 12 live routes + 2 stubs (`/api/news`, `/api/fundamentals`). One in-memory session. Error codes documented in SPEC §8.3. |
 | **Content** | `web/hints.json`, `checks.json`, `tiers.json` | 23 downside-first hints, 2 comprehension checks, 3 tiers. The server reads the same tier and check files the browser does. |
@@ -53,7 +53,7 @@
 
 | Day | Event | Number |
 |---|---|---|
-| 41 | Buy 10 AAPL | $168.00; cash $8,320.00 |
+| 41 | Buy 10 HLX | $168.00; cash $8,320.00 |
 | 54 | Safety-net prompt | $154.17, down $138.30 (−8.2%) |
 | 55 | Stop fills | $151.20; locks in −$168.00; cash $9,832.00 |
 | 61 | Trough | $132.96; the net saved **$182.40** ($18.24 a share) |

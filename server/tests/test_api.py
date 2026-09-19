@@ -13,26 +13,29 @@ EXPECTED_ROUTES = {
     ("GET", "/api/quote"), ("POST", "/api/orders"), ("DELETE", "/api/orders/{order_id}"),
     ("GET", "/api/portfolio"), ("POST", "/api/safety-net"), ("GET", "/api/tiers"),
     ("POST", "/api/comprehension"), ("GET", "/api/qa-log"),
+    ("GET", "/api/story"), ("POST", "/api/story/start"), ("POST", "/api/story/advance"),
+    ("GET", "/api/story/ending"), ("GET", "/api/coach"),          # the story layer (STORY.md)
     ("GET", "/api/news"), ("GET", "/api/fundamentals"),          # the two mock-only stubs
 }
 
 
-def test_route_table_is_frozen_at_12_live_plus_2_stubs():
+def test_route_table_is_frozen_at_17_live_plus_2_stubs():
+    """The API surface is frozen. Adding a route means updating this set on purpose."""
     actual = {(m, r.path) for r in main.app.routes if getattr(r, "path", "").startswith("/api")
               for m in r.methods if m not in ("HEAD", "OPTIONS")}
-    assert actual == EXPECTED_ROUTES and len(actual) == 14
+    assert actual == EXPECTED_ROUTES and len(actual) == 19
 
 
-def test_fresh_state_has_no_bars_and_lists_the_five_symbols(client):
+def test_fresh_state_has_no_bars_and_lists_every_symbol(client):
     st = client.get("/api/state").json()
     assert st["onboarded"] is False and st["bars"] == [] and st["cash"] == 10_000.0
-    assert [s["symbol"] for s in st["symbols"]] == ["AAPL", "KO", "NKE", "SPY", "TSLA"]
+    assert [s["symbol"] for s in st["symbols"]] == ["HLX", "BRD", "BRW", "KIN", "NVX", "VLT"]
 
 
 def test_everything_that_needs_a_replay_says_not_onboarded(client):
     calls = [client.get("/api/quote"), client.get("/api/portfolio"), client.post("/api/advance", json={"n": 1}),
-             client.post("/api/orders", json={"symbol": "AAPL", "side": "BUY", "qty": 1}),
-             client.delete("/api/orders/1"), client.post("/api/safety-net", json={"symbol": "AAPL"}),
+             client.post("/api/orders", json={"symbol": "HLX", "side": "BUY", "qty": 1}),
+             client.delete("/api/orders/1"), client.post("/api/safety-net", json={"symbol": "HLX"}),
              client.post("/api/comprehension", json={"check_id": "downside", "choice": 0})]
     assert all(r.status_code == 409 and r.json()["error"] == "NOT_ONBOARDED" for r in calls)
 
@@ -42,8 +45,8 @@ def test_onboarding_branches_and_errors(client):
     assert (st["tier"], st["tiers_unlocked"], st["cursor"], st["day"], st["price"]) == ("beginner", ["beginner"], 40, 41, 168.0)
     assert client.post("/api/onboarding", json={"experience": "new"}).json()["error"] == "ALREADY_ONBOARDED"
     client.post("/api/reset")
-    st = onboard(client, "experienced", "TSLA")
-    assert (st["tier"], st["tiers_unlocked"], st["symbol"], st["cursor"]) == ("intermediate", ["beginner", "intermediate"], "TSLA", 15)
+    st = onboard(client, "experienced", "VLT")
+    assert (st["tier"], st["tiers_unlocked"], st["symbol"], st["cursor"]) == ("intermediate", ["beginner", "intermediate"], "VLT", 15)
     client.post("/api/reset")
     assert client.post("/api/onboarding", json={"experience": "new", "symbol": "ZZZ"}).status_code == 404
     bad = client.post("/api/onboarding", json={"experience": "wizard"})
@@ -72,11 +75,11 @@ def test_market_buy_fills_at_the_close_and_updates_the_portfolio(client):
 
 def test_order_validation_errors(client):
     onboard(client)
-    body = {"symbol": "AAPL", "side": "buy", "qty": 1}
+    body = {"symbol": "HLX", "side": "buy", "qty": 1}
     assert client.post("/api/orders", json=body).status_code == 200                       # lowercase is fine
     assert client.post("/api/orders", json={**body, "as_of": 3}).json() == {
         "error": "STALE_CURSOR", "cursor": 40, "message": "Your screen is on bar 3 but the replay is on bar 40."}
-    assert client.post("/api/orders", json={**body, "symbol": "KO"}).json()["error"] == "SYMBOL_MISMATCH"
+    assert client.post("/api/orders", json={**body, "symbol": "BRW"}).json()["error"] == "SYMBOL_MISMATCH"
     assert client.post("/api/orders", json={**body, "qty": 100}).json()["error"] == "INSUFFICIENT_FUNDS"
     assert client.post("/api/orders", json={**body, "side": "SELL", "qty": 5}).json()["error"] == "INSUFFICIENT_SHARES"
     assert client.post("/api/orders", json={**body, "qty": 0}).status_code == 422
@@ -88,10 +91,10 @@ def test_tier_gating_is_enforced_by_the_server(client):
     assert r.status_code == 403 and r.json()["error"] == "TIER_LOCKED" and r.json()["required_tier"] == "intermediate"
     r = order(client, "SELL", 1, type="STOP", stop_price=150.0)
     assert r.status_code == 403 and r.json()["required_tier"] == "advanced"
-    custom = client.post("/api/safety-net", json={"symbol": "AAPL", "percent": 5})
+    custom = client.post("/api/safety-net", json={"symbol": "HLX", "percent": 5})
     assert custom.status_code == 404                                            # no position yet: checked first
     order(client, "BUY", 1)
-    custom = client.post("/api/safety-net", json={"symbol": "AAPL", "percent": 5})
+    custom = client.post("/api/safety-net", json={"symbol": "HLX", "percent": 5})
     assert custom.status_code == 403 and custom.json()["required_tier"] == "intermediate"
 
 
@@ -110,7 +113,7 @@ def test_limit_orders_rest_fill_later_and_can_be_cancelled(client):
 
 def test_guided_demo_beat_end_to_end(client):
     """SPEC.md section 12: buy, fast-forward, prompt, accept, stop fills, trough, shadow benchmark."""
-    demo = json.loads((ROOT / "fixtures" / "AAPL.json").read_text(encoding="utf-8"))["meta"]["demo"]
+    demo = json.loads((ROOT / "fixtures" / "HLX.json").read_text(encoding="utf-8"))["meta"]["demo"]
     onboard(client)
     order(client, "BUY", 10)
 
@@ -123,7 +126,7 @@ def test_guided_demo_beat_end_to_end(client):
     blocked = client.post("/api/advance", json={"n": 1})
     assert blocked.status_code == 409 and blocked.json()["error"] == "PROMPT_PENDING"
 
-    net = client.post("/api/safety-net", json={"symbol": "AAPL", "decision": "accept"}).json()
+    net = client.post("/api/safety-net", json={"symbol": "HLX", "decision": "accept"}).json()
     assert net["order"]["stop_price"] == 151.2 and net["state"]["positions"][0]["protected"] is True
     assert net["state"]["prompts"] == []
 
@@ -142,7 +145,7 @@ def test_dismissing_the_prompt_lets_the_replay_continue_unprotected(client):
     onboard(client)
     order(client, "BUY", 10)
     client.post("/api/advance", json={"n": 30})
-    st = client.post("/api/safety-net", json={"symbol": "AAPL", "decision": "dismiss"}).json()["state"]
+    st = client.post("/api/safety-net", json={"symbol": "HLX", "decision": "dismiss"}).json()["state"]
     assert st["prompts"] == [] and st["positions"][0]["protected"] is False
     st = client.post("/api/advance", json={"n": 30}).json()["state"]
     assert st["positions"][0]["qty"] == 10 and st["cursor"] > 54                   # no stop, no fill
@@ -152,16 +155,16 @@ def test_intermediate_can_choose_a_wider_safety_net_and_cannot_double_up(client)
     onboard(client, "experienced")
     order(client, "BUY", 10)
     client.post("/api/advance", json={"n": 30})
-    net = client.post("/api/safety-net", json={"symbol": "AAPL", "percent": 15})
+    net = client.post("/api/safety-net", json={"symbol": "HLX", "percent": 15})
     assert net.json()["order"]["stop_price"] == 142.8
-    assert client.post("/api/safety-net", json={"symbol": "AAPL"}).json()["error"] == "ALREADY_PROTECTED"
+    assert client.post("/api/safety-net", json={"symbol": "HLX"}).json()["error"] == "ALREADY_PROTECTED"
 
 
 def test_a_stop_above_the_market_is_refused(client):
     onboard(client, "experienced")
     order(client, "BUY", 10)
     client.post("/api/advance", json={"n": 30})
-    r = client.post("/api/safety-net", json={"symbol": "AAPL", "percent": 3})
+    r = client.post("/api/safety-net", json={"symbol": "HLX", "percent": 3})
     assert r.status_code == 400 and r.json()["error"] == "STOP_NOT_BELOW_MARKET"
 
 
@@ -181,7 +184,7 @@ def test_comprehension_checks_unlock_tiers_and_feed_the_qa_log(client):
     assert client.post("/api/comprehension", json={"check_id": "downside", "choice": 9}).status_code == 409   # already passed
 
     client.post("/api/advance", json={"n": 30})
-    client.post("/api/safety-net", json={"symbol": "AAPL", "decision": "accept"})
+    client.post("/api/safety-net", json={"symbol": "HLX", "decision": "accept"})
     assert client.get("/api/state").json()["pending_check"] == "safety_net"
     res = client.post("/api/comprehension", json={"check_id": "safety_net", "choice": 1}).json()
     assert res["unlocked_tier"] == "advanced" and res["state"]["tiers_unlocked"] == ["beginner", "intermediate", "advanced"]
@@ -219,7 +222,7 @@ def test_replaying_the_action_log_rebuilds_the_exact_session(client):
     order(client, "BUY", 10)
     client.post("/api/comprehension", json={"check_id": "downside", "choice": 2})
     client.post("/api/advance", json={"n": 30})
-    client.post("/api/safety-net", json={"symbol": "AAPL", "decision": "accept"})
+    client.post("/api/safety-net", json={"symbol": "HLX", "decision": "accept"})
     client.post("/api/advance", json={"n": 30})
     before = client.get("/api/state").json()
     assert before["action_seq"] == 6
@@ -245,7 +248,7 @@ def test_running_to_the_end_reveals_the_fixture_facts_and_stops(client):
 def test_tiers_and_stubs(client):
     t = client.get("/api/tiers").json()
     assert [x["id"] for x in t["tiers"]] == ["beginner", "intermediate", "advanced"] and t["active"] == "beginner"
-    assert client.get("/api/news", params={"symbol": "AAPL"}).json()["stub"] is True
+    assert client.get("/api/news", params={"symbol": "HLX"}).json()["stub"] is True
     assert client.get("/api/fundamentals").json()["fundamentals"] is None
 
 
