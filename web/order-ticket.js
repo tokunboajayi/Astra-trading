@@ -33,6 +33,16 @@ export function maxPotentialLoss({ side, type, qty, price, limitPrice, stopPrice
     : { label, amount: 0, note: `${usd(unit)} is above your ${usd(position.avg_price)} entry, so no loss is locked in. If the price keeps rising you miss out.` };
 }
 
+
+/** A starting quantity that fits the account: about half of it, never more than 10.
+ *  A fixed default of 10 is unaffordable on the $100 story account ($210 of a $21 share),
+ *  so the first thing a new user saw was an error. Half the account also quietly models
+ *  the sizing lesson instead of pushing her all in. */
+export function defaultQty(cash, price) {
+  if (!(price > 0)) return 1;
+  return Math.max(1, Math.min(10, Math.floor(cash / price / 2)));
+}
+
 const actionFor = (side, type) => (type === 'LIMIT' ? 'order.limit' : type === 'STOP' ? 'order.stop' : side === 'BUY' ? 'order.buy' : 'order.sell');
 
 /** mountTicket(root, { onSubmit(payload) -> Promise }) -> { update(ctx) }.
@@ -45,7 +55,7 @@ export function mountTicket(root, { onSubmit }) {
   const btnSell = h('button', { type: 'button', id: 'btnSell', class: 'btn side side-sell', text: 'Sell', onclick: () => open('SELL') });
   const selType = h('select', { id: 'ticketType', onchange: onTypeChange },
     TYPES.map(([value, label]) => h('option', { value, text: label })));
-  const inQty = h('input', { id: 'ticketQty', type: 'number', min: 1, step: 1, value: 10, inputmode: 'numeric', oninput: refresh });
+  const inQty = h('input', { id: 'ticketQty', type: 'number', min: 1, step: 1, inputmode: 'numeric', oninput: refresh });
   const inLimit = h('input', { id: 'ticketLimit', type: 'number', min: 0.01, step: 0.01, oninput: refresh });
   const inStop = h('input', { id: 'ticketStop', type: 'number', min: 0.01, step: 0.01, oninput: refresh });
   const rowLimit = field('Limit price ($)', inLimit);
@@ -167,5 +177,17 @@ export function mountTicket(root, { onSubmit }) {
       : `Confirm ${ui.side.toLowerCase()} · ${valid ? qty : '?'} share${qty === 1 ? '' : 's'}`;
   }
 
-  return { update(ctx) { ui.ctx = ctx; if (ctx.previewing) ui.mode = 'idle'; refresh(); } };
+  return {
+    update(ctx) {
+      ui.ctx = ctx;
+      // Seed the quantity from the account the first time we see a live replay, and never
+      // again - after that it is whatever the user typed.
+      if (!ui.seeded && ctx.state?.onboarded && ctx.state.price > 0) {
+        inQty.value = String(defaultQty(ctx.state.cash, ctx.state.price));
+        ui.seeded = true;
+      }
+      if (ctx.previewing) ui.mode = 'idle';
+      refresh();
+    },
+  };
 }

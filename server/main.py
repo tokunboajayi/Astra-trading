@@ -746,4 +746,21 @@ async def get_fundamentals(symbol: Optional[str] = None):
 for _ext, _type in ((".js", "application/javascript"), (".mjs", "application/javascript"),
                     (".css", "text/css"), (".json", "application/json")):
     mimetypes.add_type(_type, _ext)   # Windows registries sometimes map .js to text/plain, which breaks ES modules
-app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
+class NoCacheStatic(StaticFiles):
+    """Serve web/ with caching off.
+
+    Without this the browser keeps its own copy of app.js and friends, so you edit a file,
+    refresh, and see the OLD code - with no error to tell you why. ES modules are cached
+    especially stubbornly, and a "hard" reload does not reliably clear them.
+
+    The whole app is a handful of small files served from localhost, so there is nothing to
+    gain from caching here and a great deal of confusion to lose.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        return response
+
+
+app.mount("/", NoCacheStatic(directory=str(WEB_DIR), html=True), name="web")
