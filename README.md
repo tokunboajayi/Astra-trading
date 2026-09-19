@@ -153,7 +153,7 @@ The guided walk-through is **NVX** ($100) and it's pre-selected, so Start goes s
 ## Known open items
 
 - **The statistic on the opening screen is unverified.** The 63% / 43% figures trace back to the *Fearless Woman* research (Bucher-Koenen, Alessie, Lusardi & van Rooij, NBER), but the exact numbers haven't been checked against the original source yet. **Don't put them on a slide until someone has confirmed them.**
-- One global session works fine for a demo, but would be wrong for real, concurrent users.
+- Sessions are per browser (an `rh_sid` cookie) and live in memory, capped at 200 — so a restart or a deploy clears everyone, and past the cap the oldest visitor is dropped. Fine for a demo and for the hosted copy at [rich-her.tech](https://rich-her.tech); wrong for real traffic. See [docs/DEPLOY.md](docs/DEPLOY.md).
 - Open orders don't reserve cash, so two orders could both be validated against the same money. A later fill gets cancelled cleanly, but the user isn't warned about this up front.
 - `docs/archive/` refers to an `OPTIMIZATION_PASS_2.md` file that was never actually committed to this repo — so that link won't resolve.
 

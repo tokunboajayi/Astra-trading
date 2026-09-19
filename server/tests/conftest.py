@@ -8,8 +8,8 @@ from server import main
 def client():
     """A client on a brand-new session with an empty QA log."""
     main.QA_LOG.clear()
-    main.SESSION = main.Session(participant=1)
-    return TestClient(main.app)
+    main.SESSIONS.clear()
+    return TestClient(main.app)   # a fresh client has no cookie, so it gets its own session
 
 
 def onboard(client, experience="new", symbol="HLX"):

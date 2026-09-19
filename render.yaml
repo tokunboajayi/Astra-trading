@@ -1,0 +1,17 @@
+# Render blueprint for the hosted copy at the .tech domain.
+# The venue demo still runs on localhost with Wi-Fi off (README, "Before you demo").
+# This is the link judges click, not the thing you present from.
+services:
+  - type: web
+    name: rich-her
+    runtime: python
+    plan: free
+    buildCommand: pip install -r server/requirements.txt
+    # Render supplies $PORT and expects 0.0.0.0 - localhost-only would look dead to it.
+    startCommand: uvicorn server.main:app --host 0.0.0.0 --port $PORT
+    # "/" serves index.html and touches no session. An /api/* path would mint a throwaway
+    # session on every ping and push real visitors out of SESSIONS.
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
