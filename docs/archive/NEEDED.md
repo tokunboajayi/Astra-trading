@@ -1,8 +1,10 @@
 # Rich-HER (Astra Trading): Deliverables and Checklist
 
+> **ARCHIVED.** The v3.0 deliverables checklist. Current open items are in the README.
+
 The master inventory of what has to exist for a winning HackHERS submission. Boxes track the **dry-run repo**: `[x]` means built and covered by a passing test in this repo. The event build is a separate, later exercise; see the pre-work note below.
 
-> **Pre-work rule (unconfirmed).** Most hackathons (MLH rules) require code to be written during the event but allow planning, design and research beforehand. Until V2 confirms HackHERS's rule, treat this code as a dry run to *learn from*, not to reuse. What carries over regardless: [SPEC.md](SPEC.md) (the contract), the timings, and the lessons.
+> **Pre-work rule (unconfirmed).** Most hackathons (MLH rules) require code to be written during the event but allow planning, design and research beforehand. Until V2 confirms HackHERS's rule, treat this code as a dry run to *learn from*, not to reuse. What carries over regardless: [SPEC.md](SPEC_v3.0.md) (the contract), the timings, and the lessons.
 
 ---
 
@@ -10,8 +12,8 @@ The master inventory of what has to exist for a winning HackHERS submission. Box
 
 | Done | Path | Owner | Contract |
 |---|---|---|---|
-| [x] | `server/sim_engine.py` | B | Pure rules: fills, stops, safety-net trigger, shadow benchmark ([SPEC §5](SPEC.md#5-simulation-engine-serversim_enginepy)) |
-| [x] | `server/main.py` | B | FastAPI session, tier gates, 12 live routes + 2 stubs ([SPEC §8](SPEC.md#8-api-contract)) |
+| [x] | `server/sim_engine.py` | B | Pure rules: fills, stops, safety-net trigger, shadow benchmark ([SPEC §5](SPEC_v3.0.md#5-simulation-engine-serversim_enginepy)) |
+| [x] | `server/main.py` | B | FastAPI session, tier gates, 12 live routes + 2 stubs ([SPEC §8](SPEC_v3.0.md#8-api-contract)) |
 | [x] | `server/tests/`, `pytest.ini` | B | 60 tests: engine, fixtures, API and flows, content lint |
 | [x] | `server/smoke-test.sh` | B | Sanity-checks every route on a running server |
 | [x] | `scripts/build_fixtures.py`, `fixtures/*.json` | B | 5 symbols x 90 synthetic bars; HLX has the −22.7% drawdown |
@@ -46,7 +48,7 @@ The master inventory of what has to exist for a winning HackHERS submission. Box
 ## 4. Presentation and demo
 
 - [ ] **100% offline.** Run the demo with Wi-Fi off, three times. (`e2e-browser.mjs` already asserts no external requests and zero console errors.) **Owner: B + F**
-- [ ] **3 of 3 clean rehearsals under 2:30.** The scripted demo budget is 2:15 ([SPEC §12](SPEC.md#12-demo-script-215)). **Owner: V2 + Team lead**
+- [ ] **3 of 3 clean rehearsals under 2:30.** The scripted demo budget is 2:15 ([SPEC §12](SPEC_v3.0.md#12-demo-script-215)). **Owner: V2 + Team lead**
 - [ ] **Stranger-QA with 3–5 non-finance people**, run in person, one **Reset demo** between each. The pitch line comes from `GET /api/qa-log`. Target: at least 4 of 5 correct on the stop-loss check first try. **Owner: V2**
 - [ ] **5-slide deck.** **Owner: V2**
   1. The problem: the confidence and downside-literacy gap.
@@ -61,7 +63,7 @@ The master inventory of what has to exist for a winning HackHERS submission. Box
 
 ## 5. Hosting: the `.tech` domain
 
-The domain reintroduces the deployment dependency the review cut, so sequence it carefully ([SPEC §13](SPEC.md#13-hosting-and-the-tech-domain)):
+The domain reintroduces the deployment dependency the review cut, so sequence it carefully ([SPEC §13](SPEC_v3.0.md#13-hosting-and-the-tech-domain)):
 
 - [ ] Claim the domain **before** the event.
 - [ ] Deploy **once, near the end**, as a Devpost/judge follow-up link only.

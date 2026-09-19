@@ -1,5 +1,7 @@
 # Rich-HER refactor: summary of work
 
+> **ARCHIVED.** A changelog for the v3.0 refactor, kept for history.
+
 **Date:** 2026-09-18 · **Base commit:** `501d6eb` · **State:** the refactor is committed as `5ff9f7f` ("Migrate to Python backend, modular JS frontend, add tests and fixtures"), then merged with a collaborator's commit as `8632996`, and the local `origin/main` ref points at that same commit. This summary and its README link are the only changes made after that.
 
 ## 1. What was asked
@@ -122,4 +124,4 @@ python -m uvicorn server.main:app --port 8000     # open http://127.0.0.1:8000
 python -m pytest                                  # 60 tests
 ```
 
-Full instructions and troubleshooting are in the [README](README.md).
+Full instructions and troubleshooting are in the [README](../../README.md).

@@ -12,7 +12,7 @@ Two jobs:
    fixture is regenerated and a number drifts, the demo breaks in front of judges. This catches it
    at build time instead, the same way `build_fixtures.py --check` catches stale fixtures.
 
-Contract: SPEC_3_DRAFT.md sections 0 and 5.
+Contract: docs/SPEC_3.md sections 0 and 5.
 """
 
 import json

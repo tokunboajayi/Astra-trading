@@ -4,7 +4,7 @@ server/main.py
 FastAPI app for Rich-HER / Astra Trading. Mock mode only: no Alpaca, no live data.
 Session-authoritative: one in-memory demo session holds the truth, and the browser renders
 whatever /api/state says. The rules live in server/sim_engine.py; this file is the session,
-the tier gates and the HTTP layer. Owned by B (Backend). Contract: SPEC.md section 8.
+the tier gates and the HTTP layer. Owned by B (Backend). Contract: docs/archive/SPEC_v3.0.md section 8.
 
 Run from the repo root:  uvicorn server.main:app --port 8000
 Handlers are `async def` with no awaits on purpose: each request then runs to completion on
@@ -112,7 +112,7 @@ def record(session, method, path, body=None):
 
     The browser keeps a copy of this log in localStorage. If the server restarts, the
     browser replays it through the normal routes and the session comes back identical
-    (the simulation is deterministic). See SPEC.md section 6.
+    (the simulation is deterministic). See docs/archive/SPEC_v3.0.md section 6.
     """
     session.replay_log.append({"method": method, "path": path, "body": body})
 

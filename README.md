@@ -1,128 +1,174 @@
-# Rich-HER (Astra Trading)
+# Rich-HER
 
-**A trading simulator that teaches what you could lose before what you could gain.** Built for HackHERS.
+**A trading simulator that teaches women to start before they feel ready.** Built for HackHERS.
 
-> *"Don't just teach people how to make money. Teach them how not to lose it."*
-
-> **Status: dry-run build.** This repo is the working scaffold called for in [Optimization Pass 2](OPTIMIZATION_PASS_2.md) (next action #5) to test the architecture before HackHERS. It is **not** the hackathon submission. HackHERS's pre-work rules are unconfirmed, so do not reuse this code at the event until V2 confirms them. Mock mode only: no Alpaca, no live data.
+> Hesitation, not ignorance, is the barrier. So there is no "I don't know" button anywhere in
+> this product, no score, and no timer.
 
 <p>
-  <img src="docs/demo-desktop.png" alt="Rich-HER after a safety net sold at $151.20: the money-flow line reports the locked-in loss and the shadow line shows what ignoring the net would have cost" width="62%">
-  <img src="docs/demo-phone.png" alt="The safety-net prompt on a phone: your HLX position is down 8.2%, with one-tap protection" width="26%">
+  <img src="docs/demo-desktop.png" alt="Rich-HER after a safety net sold: the money-flow line reports the locked-in loss and the shadow line shows what ignoring the net would have cost" width="62%">
+  <img src="docs/demo-phone.png" alt="The safety-net prompt on a phone, with one-tap protection" width="26%">
 </p>
 
-## What it does
+---
 
-Most trading apps lead with upside. Rich-HER leads with the downside. You get $10,000 of pretend money and a price **replay where the future is hidden**. You buy, you read what you could lose *before* you confirm, and you fast-forward into a real-feeling drawdown. When a position is down 8%, a one-tap **safety net** offers to sell automatically if it falls to 10%. Afterwards a **shadow benchmark** shows what ignoring the net would have done, in both directions: sometimes it saved you, sometimes it cost you.
-
-Progress is earned by understanding, not by trading more: a quick check after your first trade unlocks Tier 2, and a check after your first safety net unlocks Tier 3.
-
-## Architecture
-
-```mermaid
-graph LR
-    B["Browser: web/<br/>vanilla JS, no build step"] -- "/api/* JSON" --> S["FastAPI: server/main.py<br/>session + tier gates"]
-    S --> E["sim_engine.py<br/>pure rules"]
-    S --> F[("fixtures/*.json<br/>5 symbols x 90 bars")]
-    G["scripts/build_fixtures.py"] --> F
-    S -- "serves web/ at /" --> B
-    B -. "action log only" .-> L[("localStorage")]
-```
-
-## Key features
-
-- **Downside-first everywhere.** Every hint, ticket and prompt states the loss before the function. A lint test fails the build if a hint doesn't.
-- **Walk into the dip.** Deterministic replay, one day at a time. Fast-forward stops the instant something happens, so a fill or the prompt can't be skipped.
-- **Tap-to-Explain ticket.** Tap Buy, read the amber downside box and "most you could lose", wait 1.5 s, then confirm.
-- **Safety net at every tier.** The −8% prompt is a guardrail, not a reward; tiers unlock *control* over it.
-- **Server-authoritative.** The browser never computes a fill. After a server restart it replays its saved action log and the session comes back exactly.
-- **Offline.** No CDN, no web fonts, no external requests: it runs with Wi-Fi off.
-- **Honest data.** Prices are synthetic and labeled that way in the UI.
-
-## Tech stack
-
-| Layer | Technology | Why |
-|---|---|---|
-| Backend | Python 3.10+, FastAPI, Uvicorn | Small, readable, type-checked request bodies. |
-| Rules | `server/sim_engine.py`, standard library only | Pure functions: unit-testable and portable to Go/C++. |
-| Data | Seeded generator → `fixtures/*.json` | Byte-identical on every machine; the dip is guaranteed. |
-| Frontend | Vanilla JS modules, SVG, CSS | No build step, no dependencies, nothing to break on stage. |
-| Tests | pytest, a route smoke test, a headless-browser check | 60 unit/API tests plus an end-to-end run. |
-
-## Getting started
-
-**Prerequisites:** Python 3.10+ and Git. (Node 22+ and Edge/Chrome are needed only for the optional browser test.)
+## Run it
 
 ```bash
-git clone https://github.com/tokunboajayi/Astra-trading.git
-cd Astra-trading
 python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
 pip install -r server/requirements.txt
 python -m uvicorn server.main:app --port 8000
 ```
 
-Open **http://127.0.0.1:8000**. One process serves the API and the app.
-
-### Run the tests
-
-```bash
-python -m pytest                     # 60 tests: engine, fixtures, API flows, content lint
-bash server/smoke-test.sh            # every route on a running server (start it first; use a scratch server)
-python scripts/build_fixtures.py --check      # fixtures match a fresh build
-node scripts/e2e-browser.mjs         # optional: the whole flow in a headless browser
-```
-
-### Two-server mode
+Open <http://127.0.0.1:8000>. One process serves the API and the page. **Runs with Wi-Fi off** —
+no CDN, no web fonts, no external requests of any kind.
 
 ```bash
-# terminal 1
-python -m uvicorn server.main:app --port 8000
-# terminal 2
-cd web && python -m http.server 5500          # open http://127.0.0.1:5500
+python -m pytest                          # 192 tests, under a second
+python scripts/build_fixtures.py --check  # fixtures match a fresh build
+node scripts/e2e-browser.mjs              # 59 browser checks (Edge/Chrome, ports 8000 + 5500 free)
 ```
 
-The frontend finds the API at `http://127.0.0.1:8000` unless it is served from port 8000. Override with `?api=https://your-backend` or `window.RICHHER_API`.
+---
 
-### Troubleshooting
+## Where to start, by who you are
 
-| Symptom | Fix |
-|---|---|
-| Blank page when you double-click `index.html` | ES modules need HTTP. Use one of the two modes above. |
-| "Failed to load module script … MIME type" (Windows) | Use the single-server mode; it forces the right `.js` type. |
-| Port 8000 is busy | `--port 8001`, then open `http://127.0.0.1:8001/?api=` (an empty `api` means same-origin). |
-| "The replay cannot start" card | The server isn't running. Start it with the `uvicorn` command above. |
-| You want a clean slate for the next person | Click **Reset demo** (top right). |
-
-## The 2:15 demo
-
-Buy 10 HLX at **$168.00** → fast-forward until the prompt appears on Day 54 (**$154.17**, down $138.30) → protect the position at **$151.20** → the net sells on Day 55 → by Day 61 the price is **$132.96** and the shadow line says the net saved **$182.40**. Full script with timings: [SPEC.md §12](SPEC.md#12-demo-script-215).
-
-## Team and ownership
-
-| Role | Who | Owns |
+| You are | Read | What it gives you |
 |---|---|---|
-| **B** Backend + project lead | Tokunbo (AJ), `tokunboajayi53@gmail.com` | `server/`, `scripts/`, `fixtures/` |
-| **F** Frontend | Collaborator 1, `loku.cs.agrawal@gmail.com` (shell, styles, chart) · Collaborator 2, `halfdoneburntpancake@gmail.com` (app state, order ticket) | `web/index.html`, `index.css`, `app.js`, `chart.js`, `order-ticket.js`, `format.js` |
-| **V1** Content and UX | Collaborator 3, `ubaniebereo@gmail.com` | `web/hint.js`, `hints.json`, `checks.json`, `money-flow.js`, `safety-net.js` |
-| **V2** Validation, pitch, Devpost, domain | **Unassigned** | `web/tier-picker.js`, `tiers.json`, the deck, Devpost, stranger-QA, the `.tech` domain, HackHERS rules |
+| **Building the frontend** | [API.md](API.md) | Every route, the snapshot shape, the error table |
+| **New to this codebase** | [ONBOARDING.md](ONBOARDING.md) | Reading order, Python→JS idioms, a safe first change |
+| **Writing story or copy** | [STORY.md](STORY.md) | Characters, the wager, six endings, the scene schema |
+| **Deciding what to build** | [docs/SPEC_3.md](docs/SPEC_3.md) | The thesis, the principles, the open decisions |
+| **Designing screens** | [docs/WORKFLOW.md](docs/WORKFLOW.md) | The full user flow, act by act |
 
-Two open items for AJ ([Optimization Pass 2](OPTIMIZATION_PASS_2.md), action #2): who is V2, and whether F is one person or two.
+Superseded material is in [docs/archive/](docs/archive/), kept for traceability and **not to be
+followed**. `SPEC_v3.0.md` in particular describes an older product — a $10,000 account and a
+downside-first framing — that [docs/SPEC_3.md](docs/SPEC_3.md) replaced.
 
-## Documentation
+---
 
-| Doc | What is in it |
-|---|---|
-| [SPEC.md](SPEC.md) | The contract: architecture, engine rules, API, tiers, demo script, hosting. |
-| [WHITE_PAPER.md](WHITE_PAPER.md) | The vision, the problem and the teaching approach. |
-| [NEEDED.md](NEEDED.md) | The deliverables checklist, pre-event actions and open decisions. |
-| [SUMMARY.md](SUMMARY.md) | What changed in the refactor, what was verified, and what still needs a decision. |
-| [OPTIMIZATION_PASS_2.md](OPTIMIZATION_PASS_2.md) | The review that shaped this build. [SPEC.md Appendix A](SPEC.md#appendix-a-optimization-pass-2-traceability) maps each finding to where it is resolved. |
+## What actually works right now
 
-## Targets
+Be precise about this, because the designs are further along than the app.
 
-3 of 3 clean offline rehearsals · demo under 2:30 · at least 4 of 5 stranger-testers answer the stop-loss check correctly first try · every hint downside-first · Devpost locked by H+22.
+**Working, demoable, covered by tests:**
+
+- $100 practice account on NVX, $10,000 on the other five fixtures
+- Price replay where the future is hidden, one day at a time
+- Tap-to-Explain order ticket — the downside box, Confirm locked 1.5s
+- The −8% safety net, every number computed from her actual position
+- Fast-forward that stops the instant something happens
+- Three tiers, comprehension checks, the shadow benchmark
+- The whole story layer through the API: scenes, choices, flags, six endings
+- Restart recovery — the browser replays its log and the session returns exactly
+
+**Designed but not built as UI** (the API is ready for all of it):
+
+- The four opening screens — statistic, experience, name, Vela's arrival
+- Vela's checkpoints and the interstitial animations
+- Acts 1, 2, 3, 5, 6 dialogue — only Act 4 is written
+
+---
+
+## The one rule
+
+**The browser never calculates anything about money.**
+
+Not the price, not the fill, not the profit, not the ending. Every action posts to the server,
+the server recalculates everything, and the response carries the complete new state. The
+browser throws away what it had and redraws from that.
+
+If you catch yourself writing `price * quantity` in a `.js` file, stop — that number should
+have come from the server.
+
+---
+
+## The companies are fictional
+
+**HLX, BRW, BRD, KIN, NVX and VLT are invented.** Every price is synthetic, generated by
+`scripts/build_fixtures.py`, and every fixture carries `"synthetic": true`. Nothing refers to a
+real listed company, so there is no number anyone can fact-check against a real market — and
+the UI says so on screen.
+
+| Ticker | Company | Account | Character |
+|---|---|---|---|
+| **NVX** | Novexa Systems | **$100** | Dips −10%, ends **+25%**. The story fixture. |
+| HLX | Helix Devices | $10,000 | Steady climb, then a −22.7% pullback. The tier demo. |
+| BRW | Brightwater Coffee | $10,000 | Slow and steady, ends +3.9% |
+| BRD | Broadline 500 Fund | $10,000 | Broad index, shallow dips |
+| KIN | Kinetic Apparel | $10,000 | Choppy, −14% mid dip |
+| VLT | Voltaic Motors | $10,000 | Big swings, −27.3% |
+
+Fixtures are **generated, never hand-edited**. `--check` rebuilds them and fails if what is on
+disk differs.
+
+---
+
+## Layout
+
+```
+server/
+  sim_engine.py        the market maths       - pure, no I/O. Start here.
+  story_engine.py      scenes, flags, endings - pure, no I/O
+  main.py              routes, session, snapshot()
+  tests/               192 tests
+fixtures/*.json        the synthetic market data
+scripts/
+  build_fixtures.py    generates the fixtures (deterministic)
+  e2e-browser.mjs      59 checks in a real browser
+web/
+  index.html           the page
+  tokens.css           the design system - use the variables, never a raw hex
+  app.js               browser coordinator
+  coach.json           Coach Nia: persona + pop-out copy
+  scenes/*.json        the story: Act 4, the six endings
+```
+
+**Content lives in JSON, not code.** `coach.json`, `scenes/*.json`, `tiers.json` and
+`checks.json` hold the words and the rules, and both the server and the browser read them — so
+the screen and the server can never disagree. **You can change wording without touching a
+`.py` or `.js` file.**
+
+---
+
+## The tests are strict about words, on purpose
+
+The build fails if content breaks a principle:
+
+- an "I don't know" / skip / unsure option appears anywhere
+- any scoring field appears anywhere
+- a named loss has no next step beside it
+- a drawdown scene has no recovery scene after it
+- a scene is a dead end, or a `goto` dangles
+- **any dollar figure drifts from what the fixture actually produces**
+
+That last one matters most. The coach quotes exact numbers. If someone regenerates the
+fixtures those numbers move and the demo breaks in front of judges — so it breaks in CI
+instead. If a test complains about your sentence, it is doing its job.
+
+---
+
+## Before you demo
+
+1. **Hit "Reset demo"** between participants, not just a page refresh. A refresh replays the
+   previous session's saved log.
+2. Run on **localhost with Wi-Fi off**. Never present from a hosted URL.
+3. The server holds **one global session** — one presenter at a time.
+
+---
+
+## Known open items
+
+- **The statistic on the opening screen is unverified.** The 63% / 43% figures trace to the
+  *Fearless Woman* research (Bucher-Koenen, Alessie, Lusardi & van Rooij, NBER), but the exact
+  numbers have not been checked against the primary source. **Do not put them on a slide until
+  someone has.**
+- One global session: fine for a demo, wrong for concurrent users.
+- Open orders do not reserve cash, so two orders can each validate against the same money. A
+  later fill is cancelled cleanly, but the user is not warned up front.
+- `docs/archive/` refers to an `OPTIMIZATION_PASS_2.md` that was never committed to this repo.
 
 ## License
 
-MIT, as declared in the project's original `package.json`. There is no `LICENSE` file yet.
+MIT, as declared in the original `package.json`. There is no `LICENSE` file yet.

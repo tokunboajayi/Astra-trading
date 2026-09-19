@@ -1,5 +1,9 @@
 # Rich-HER / Astra Trading: White Paper
 
+> **ARCHIVED.** Written against the v3.0 thesis. The current thesis is in
+> [SPEC_3.md](../SPEC_3.md). Useful for the pitch narrative; check any claim against the
+> current spec before using it.
+
 **Empowering Financial Autonomy Through Downside-First Risk Literacy and Progressive Simulation**
 
 ---
@@ -71,7 +75,7 @@ Rich-HER runs entirely on one laptop, with no internet, to keep a live demo from
 * **Simulation engine (`server/sim_engine.py`).** Pure, deterministic rules for fills, stops and the safety-net trigger, unit-tested without a server and portable to another language.
 * **Recovery.** The browser keeps the server's action log; after a restart it replays the log through the normal routes and the session returns exactly.
 
-Full contract: [SPEC.md](SPEC.md).
+Full contract: [SPEC.md](SPEC_v3.0.md).
 
 ---
 

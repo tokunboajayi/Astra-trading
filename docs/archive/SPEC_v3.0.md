@@ -1,5 +1,9 @@
 # Rich-HER (Astra Trading): Technical Specification
 
+> **SUPERSEDED — do not follow.** This describes an earlier product: a $10,000 account
+> and a downside-first framing. It was replaced by [SPEC_3.md](../SPEC_3.md). Kept for
+> traceability only.
+
 **Version:** 3.0 · **Supersedes:** 2.0 (Node.js build) · **Status:** dry-run baseline. This is the contract the team freezes after the 3–4-week dry run (see [section 0](#0-status-and-scope)).
 
 Rich-HER teaches downside-first risk literacy. A user trades $10,000 of pretend money through a price replay where the future is hidden, and a one-tap safety net steps in when a position is down 8%.
@@ -8,7 +12,7 @@ Rich-HER teaches downside-first risk literacy. A user trades $10,000 of pretend 
 
 ## 0. Status and scope
 
-- **This is the dry-run build**, called for in [Optimization Pass 2](OPTIMIZATION_PASS_2.md) (next action #5). It tests the architecture before HackHERS. It is not the hackathon submission.
+- **This is the dry-run build**, called for in Optimization Pass 2 (not in this repo) (next action #5). It tests the architecture before HackHERS. It is not the hackathon submission.
 - **Mock mode only.** No Alpaca, no live data. Architecture leaves room for both; neither is built.
 - **Pre-work rules are unconfirmed.** Most hackathons require code to be written during the event. V2 must confirm HackHERS's rules before any of this code or content is reused at the event (Optimization Pass 2, loophole #9). What carries over regardless: this contract, the timings, and the lessons.
 - **Sources.** Derived from the prototype README and Optimization Pass 2. `API_CONTRACT.md`, which the prototype README says it matches, was not available; section 8 is a fresh contract derived from the described behaviour. Reconcile it if `API_CONTRACT.md` differs. Interpretations made where the README was terse are listed in [Appendix B](#appendix-b-interpretations-to-confirm).
