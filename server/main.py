@@ -33,8 +33,9 @@ from . import story_engine as story
 ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = ROOT / "web"
 FIXTURE_DIR = ROOT / "fixtures"
-START_TIER = {"new": "beginner", "experienced": "intermediate"}
 DEFAULT_STOP_PERCENT = 10.0
+DEFAULT_SYMBOL = "VOLT"        # the featured stock: what a fresh session is focused on
+DEFAULT_START_CASH = 100.00    # every fixture agrees on this now (one shared account, six symbols)
 
 
 def _load(path):
@@ -44,19 +45,27 @@ def _load(path):
         raise SystemExit(f"Missing {path.relative_to(ROOT)}. Fixtures come from: python scripts/build_fixtures.py")
 
 
-# NVX sorts first: it is the guided demo, the $100 story account, and the option the
-# onboarding card recommends. Everything else follows alphabetically.
-FIXTURES = {p.stem: _load(p) for p in sorted(FIXTURE_DIR.glob("*.json"), key=lambda p: (p.stem != "NVX", p.stem))}
+# VOLT sorts first: it is the featured stock and what the ticket opens on. Everything
+# else follows alphabetically. All six symbols are loaded and tradeable at once - the
+# floor is a single shared account with a watchlist, not one onboarded symbol.
+FIXTURES = {p.stem: _load(p) for p in sorted(FIXTURE_DIR.glob("*.json"), key=lambda p: (p.stem != DEFAULT_SYMBOL, p.stem))}
 if not FIXTURES:
     raise SystemExit("No fixtures in fixtures/. Run: python scripts/build_fixtures.py")
+if DEFAULT_SYMBOL not in FIXTURES:
+    raise SystemExit(f"Missing the featured fixture {DEFAULT_SYMBOL}.json in fixtures/.")
 TIERS = _load(WEB_DIR / "tiers.json")
 CHECKS = _load(WEB_DIR / "checks.json")
 COACH = _load(WEB_DIR / "coach.json")
 SCENES = {p.stem: _load(p) for p in sorted((WEB_DIR / "scenes").glob("*.json")) if p.stem != "endings"}
 ENDINGS = _load(WEB_DIR / "scenes" / "endings.json")
 TIER_IDS = [t["id"] for t in TIERS]
-SYMBOLS = [{**{k: f[k] for k in ("symbol", "name", "blurb", "volatility", "start_cursor")},
-            "start_cash": f.get("start_cash", sim.STARTING_CASH)} for f in FIXTURES.values()]
+# Every fixture shares one clock (see scripts/build_fixtures.py): reading the tick count
+# off any one of them is reading it off all of them.
+LAST_TICK = len(next(iter(FIXTURES.values()))["bars"]) - 1
+SYMBOL_META = {f["symbol"]: {k: f[k] for k in
+                              ("symbol", "name", "blurb", "sector", "kind", "volatility", "featured", "fund")}
+               for f in FIXTURES.values()}
+SYMBOLS = list(SYMBOL_META.values())            # static metadata only; snapshot() adds live prices
 
 
 def usd(x):
@@ -79,30 +88,32 @@ def sim_error(e):
 
 @dataclass
 class Session:
+    """One shared floor: a single cash balance and tick cursor across all six symbols,
+    so a position in more than one of them at once is normal, not a special case."""
+
     participant: int
     onboarded: bool = False
-    symbol: Optional[str] = None
-    bars: list = field(default_factory=list)
-    cursor: int = 0
+    symbol: Optional[str] = None           # the WATCHED symbol (the ticket/chart's focus) - never a trading lock
+    cursor: int = 0                        # one clock for every symbol (see LAST_TICK)
     tier: str = "beginner"                 # highest unlocked tier
-    cash: float = sim.STARTING_CASH
-    starting_cash: float = sim.STARTING_CASH       # from the fixture; $10,000 or the story's $100
-    positions: dict = field(default_factory=dict)
-    orders: list = field(default_factory=list)       # every order ever placed; id == index + 1
+    cash: float = DEFAULT_START_CASH
+    starting_cash: float = DEFAULT_START_CASH
+    positions: dict = field(default_factory=dict)     # {symbol: {"qty", "avg_price"}} - may hold several at once
+    orders: list = field(default_factory=list)        # every order ever placed; id == index + 1
     trades: list = field(default_factory=list)
     realized: float = 0.0
-    dismissed: set = field(default_factory=set)      # symbols whose safety-net prompt was waved away
-    kept_lots: list = field(default_factory=list)    # shares a safety net sold, for the shadow benchmark
+    dismissed: set = field(default_factory=set)       # symbols whose safety-net prompt was waved away
+    kept_lots: list = field(default_factory=list)     # shares a safety net sold, for the shadow benchmark
     events: list = field(default_factory=list)
     checks_passed: set = field(default_factory=set)
     check_attempts: dict = field(default_factory=dict)
     first_buy_done: bool = False
     safety_net_used: bool = False
-    replay_log: list = field(default_factory=list)   # accepted actions; replaying them rebuilds the session
-    scene: Optional[str] = None                      # current story scene id, e.g. "act4.drop5"
-    act: Optional[str] = None                        # which file `scene` lives in, e.g. "act4"
-    flags: set = field(default_factory=set)          # narrative flags set by choices
-    worst_equity: float = sim.STARTING_CASH          # lowest equity ever seen, for panicked_at_trough
+    replay_log: list = field(default_factory=list)    # accepted actions; replaying them rebuilds the session
+    scene: Optional[str] = None                       # current story scene id, e.g. "act4.drop5"
+    act: Optional[str] = None                         # which file `scene` lives in, e.g. "act4"
+    flags: set = field(default_factory=set)           # narrative flags set by choices
+    worst_equity: float = DEFAULT_START_CASH           # lowest equity ever seen, for panicked_at_trough
 
 
 SESSIONS = {}        # one Session per browser, keyed by the rh_sid cookie
@@ -143,7 +154,8 @@ def add_event(session, kind, message, **data):
     `kind` is a machine-readable type (FILL, CANCEL, UNLOCK...) the frontend styles on;
     `message` is the plain-English sentence the user actually reads.
     """
-    session.events.append({"seq": len(session.events) + 1, "bar": session.cursor, "day": session.cursor + 1,
+    day, time = tick_label(session.cursor)
+    session.events.append({"seq": len(session.events) + 1, "bar": session.cursor, "day": day, "time": time,
                            "type": kind, "message": message, **data})
 
 
@@ -153,9 +165,18 @@ def require_onboarded(session):
         raise ApiError(409, "NOT_ONBOARDED", "Start a replay first: POST /api/onboarding.")
 
 
-def current_bar(session):
-    """Today's OHLC bar: {i, day, o, h, l, c}. `cursor` is the index of the day we're on."""
-    return sim.price_at(session.bars, session.cursor)
+def current_bar(session, symbol):
+    """`symbol`'s bar at this session's shared tick cursor: {i, day, time, o, h, l, c, n}.
+    Every symbol is read from FIXTURES at the same cursor - there is one clock, not one
+    per position - so this never needs the session to have "chosen" a symbol first."""
+    return sim.price_at(FIXTURES[symbol]["bars"], session.cursor)
+
+
+def tick_label(cursor):
+    """The calendar day/time label for a tick, read off any fixture (they all share the
+    same clock, so any one of them gives the same answer)."""
+    bar = sim.price_at(FIXTURES[DEFAULT_SYMBOL]["bars"], cursor)
+    return bar["day"], bar["time"]
 
 
 def caps(tier):
@@ -174,14 +195,14 @@ def tier_title(tier):
 
 
 def find_prompts(session):
-    """Any position currently down 8% or more that still has no safety net.
-
-    A non-empty list here blocks /api/advance: the user must answer the prompt before
-    time can move again, so fast-forward can never skip past it.
+    """Disabled for the trading floor: richher.html paces itself with six scripted coach
+    halts at fixed ticks, not a reactive "you're down 8%" interruption, and has no UI for
+    one. sim.check_safety_net_candidates still exists (and is still unit-tested) as a pure
+    function - a future flow could call it - but nothing here does, so /api/advance can
+    never surprise the floor with a stop it has no card for. `prompts` stays in the
+    snapshot, always empty, so the response shape does not change underneath the browser.
     """
-    if not session.onboarded:
-        return []
-    return sim.check_safety_net_candidates(session.positions, current_bar(session)["c"], session.orders, session.dismissed)
+    return []
 
 
 def describe(order):
@@ -195,7 +216,8 @@ def describe(order):
 def cancel(session, order, code, why=None):
     """Mark a resting order cancelled and tell the user why, in plain English."""
     order.update(status="CANCELLED", reason=code)
-    add_event(session, "CANCEL", f"Day {session.cursor + 1}: cancelled your {describe(order)}" + (f": {why}" if why else "."))
+    day, _ = tick_label(session.cursor)
+    add_event(session, "CANCEL", f"Day {day}: cancelled your {describe(order)}" + (f": {why}" if why else "."))
 
 
 def sync_stops(session, symbol):
@@ -212,8 +234,12 @@ def sync_stops(session, symbol):
 SOURCE_LABEL = {"MARKET": "", "LIMIT": " (limit order)", "STOP": " (stop order)", "SAFETY_NET": " (your safety net)"}
 
 
-def execute(session, order, price, bar_index, reason):
-    """Fills an order: updates cash, position, trades and the shadow benchmark."""
+def execute(session, order, price, bar_index, reason, quote=None, slip=None):
+    """Fills an order: updates cash, position, trades and the shadow benchmark.
+
+    `quote`/`slip` are only meaningful for a MARKET fill (see sim.slippage_fill_price):
+    the trade record carries them so the ticket can show the gap between the quoted price
+    and what actually filled, instead of recomputing it client-side."""
     sym = order["symbol"]
     cash, position, realized = sim.apply_fill(session.cash, session.positions.get(sym), order["side"], order["qty"], price)
     session.cash, session.realized = cash, round(session.realized + realized, 2)
@@ -223,9 +249,10 @@ def execute(session, order, price, bar_index, reason):
         session.positions.pop(sym, None)
         session.dismissed.discard(sym)
     order.update(status="FILLED", filled_bar=bar_index, fill_price=price, reason=reason)
-    trade = {"order_id": order["id"], "bar": bar_index, "day": bar_index + 1, "symbol": sym,
+    day, time = tick_label(bar_index)
+    trade = {"order_id": order["id"], "bar": bar_index, "day": day, "time": time, "symbol": sym,
              "side": order["side"], "qty": order["qty"], "price": price, "reason": reason,
-             "realized_pnl": realized}
+             "quote": quote, "slip": slip, "realized_pnl": realized}
     session.trades.append(trade)
     if order["side"] == "BUY":
         session.first_buy_done = True
@@ -233,7 +260,7 @@ def execute(session, order, price, bar_index, reason):
     if reason == "SAFETY_NET":
         session.kept_lots.append({"qty": order["qty"], "fill_price": price, "bar": bar_index})
     verb = "bought" if order["side"] == "BUY" else "sold"
-    add_event(session, "FILL", f"Day {bar_index + 1}: {verb} {order['qty']} {sym} at {usd(price)}"
+    add_event(session, "FILL", f"Day {day}: {verb} {order['qty']} {sym} at {usd(price)}"
                        f"{SOURCE_LABEL[reason]}.", order_id=order["id"])
     sync_stops(session, sym)
     return trade
@@ -268,6 +295,20 @@ def qa_summary():
 
 # --------------------------------------------------------------------------- snapshot
 
+def watchlist_for(cursor):
+    """Live price and change-since-the-tape-opened for every symbol, at one shared tick.
+    Computed fresh every call (never stored) so it can never drift from the fixtures.
+    Meaningful even before onboarding (cursor is 0), so the browser can paint the floor's
+    watchlist before a replay has started."""
+    out = []
+    for sym, meta in SYMBOL_META.items():
+        bars = FIXTURES[sym]["bars"]
+        first, price = bars[0]["c"], sim.price_at(bars, cursor)["c"]
+        out.append({"symbol": sym, "name": meta["name"],
+                    "price": price, "change_pct": round((price - first) / first * 100, 4)})
+    return out
+
+
 def snapshot(session):
     """Everything the browser needs to render, in one object. Never contains a future bar.
 
@@ -281,16 +322,17 @@ def snapshot(session):
          (the browser can render an empty shell without null-checking everything).
       2. If a replay IS running, `out.update(...)` fills in the live numbers.
 
-    The "no look-ahead" rule lives here: `bars` is sliced to [0 .. cursor], so the
-    response physically cannot contain tomorrow's price.
+    The "no look-ahead" rule lives here: every price comes from `session.cursor` alone,
+    so the response physically cannot contain tomorrow's price for any of the six symbols.
     """
     out = {
         "boot_id": BOOT_ID, "onboarded": session.onboarded, "participant": session.participant,
         "action_seq": len(session.replay_log),
         "starting_cash": session.starting_cash, "symbols": SYMBOLS, "symbol": session.symbol,
+        "watchlist": watchlist_for(session.cursor),
         "tier": session.tier, "tiers_unlocked": TIER_IDS[:TIER_IDS.index(session.tier) + 1],
-        "cursor": session.cursor, "day": None, "total_days": len(session.bars) or None, "finished": False,
-        "price": None, "bars": [], "strategy": None,
+        "cursor": session.cursor, "day": None, "time": None, "total_ticks": LAST_TICK + 1, "finished": False,
+        "price": None, "bars": [],
         "cash": round(session.cash, 2), "positions": [],
         "open_orders": [o for o in session.orders if o["status"] == "OPEN"], "trades": session.trades,
         "equity": round(session.cash, 2), "market_value": 0.0, "unrealized_pnl": 0.0,
@@ -302,26 +344,26 @@ def snapshot(session):
     }
     if not session.onboarded:
         return out
-    bar = current_bar(session)
-    price = bar["c"]
-    summ = sim.portfolio_summary(session.cash, session.positions, price)
+    watched = current_bar(session, session.symbol)
+    prices = {sym: current_bar(session, sym)["c"] for sym in session.positions}
+    summ = sim.portfolio_summary(session.cash, session.positions, prices)
     stops = {o["symbol"]: o["stop_price"] for o in session.orders if o["status"] == "OPEN" and o.get("safety_net")}
     positions = [{
-        "symbol": sym, "qty": p["qty"], "avg_price": p["avg_price"], "price": price,
-        "market_value": round(p["qty"] * price, 2),
-        "unrealized_pnl": round((price - p["avg_price"]) * p["qty"], 2),
-        "unrealized_pnl_pct": round((price / p["avg_price"] - 1) * 100, 2),
+        "symbol": sym, "qty": p["qty"], "avg_price": p["avg_price"], "price": prices[sym],
+        "market_value": round(p["qty"] * prices[sym], 2),
+        "unrealized_pnl": round((prices[sym] - p["avg_price"]) * p["qty"], 2),
+        "unrealized_pnl_pct": round((prices[sym] / p["avg_price"] - 1) * 100, 2),
         "protected": sim.protected_qty(session.orders, sym) >= p["qty"], "stop_price": stops.get(sym),
     } for sym, p in sorted(session.positions.items())]
-    delta = sim.shadow_delta(session.kept_lots, price)
+    # The shadow benchmark only ever has something to say about the symbol a safety net
+    # actually sold, which - now that positions can span several symbols - may not be the
+    # one currently on screen. It stays scoped to `session.symbol` deliberately, same as before.
+    delta = sim.shadow_delta(session.kept_lots, watched["c"])
     total = round(summ["equity"] - session.starting_cash, 2)
-    fx = FIXTURES[session.symbol]
-    finished = session.cursor >= len(session.bars) - 1
+    finished = session.cursor >= LAST_TICK
     out.update(
-        day=bar["day"], finished=finished, price=price,
-        bars=session.bars[:session.cursor + 1],
-        strategy={"name": fx["strategy"]["name"], "fast": fx["strategy"]["fast"], "slow": fx["strategy"]["slow"],
-                  "signals": [g for g in fx["strategy"]["signals"] if g["bar"] <= session.cursor]},
+        day=watched["day"], time=watched["time"], finished=finished, price=watched["c"],
+        bars=FIXTURES[session.symbol]["bars"][:session.cursor + 1],
         positions=positions, equity=summ["equity"], market_value=summ["market_value"],
         unrealized_pnl=summ["unrealized_pnl"], unrealized_pnl_pct=summ["unrealized_pnl_pct"],
         total_pnl=total, total_pnl_pct=round(total / session.starting_cash * 100, 2),
@@ -329,7 +371,8 @@ def snapshot(session):
                 "equity": round(summ["equity"] + delta, 2), "delta_vs_you": delta,
                 "saved_by_safety_net": round(-delta, 2)},
         prompts=find_prompts(session), pending_check=pending_check(session),
-        fixture_meta={"max_drawdown_pct": fx["meta"]["max_drawdown_pct"], "synthetic": True} if finished else None,
+        fixture_meta={"max_drawdown_pct": FIXTURES[session.symbol]["meta"]["max_drawdown_pct"], "synthetic": True}
+        if finished else None,
     )
     return out
 
@@ -337,8 +380,8 @@ def snapshot(session):
 # --------------------------------------------------------------------------- request models
 
 class OnboardingReq(BaseModel):
-    experience: Literal["new", "experienced"]
-    symbol: str = "NVX"
+    tier: Literal["beginner", "intermediate", "advanced"] = "beginner"     # set directly by richher's quiz
+    symbol: str = DEFAULT_SYMBOL       # which watchlist row the ticket/chart opens focused on
 
 
 class AdvanceReq(BaseModel):
@@ -421,15 +464,16 @@ async def post_onboarding(request: Request, req: OnboardingReq):
     fx = FIXTURES.get(req.symbol.upper())
     if not fx:
         raise ApiError(404, "UNKNOWN_SYMBOL", f"Choose one of: {', '.join(FIXTURES)}.")
-    session.onboarded, session.symbol, session.bars, session.cursor = True, fx["symbol"], fx["bars"], fx["start_cursor"]
-    # Each fixture declares the practice account it is priced for: HLX's $168 shares need
-    # $10,000, NVX's $21 shares are built for the $100 story (STORY.md section 2).
-    session.cash = session.starting_cash = fx.get("start_cash", sim.STARTING_CASH)
+    # Every fixture starts the floor the same way (cursor 0, one shared cash balance) -
+    # `req.symbol` only decides which watchlist row is focused when the floor opens.
+    session.onboarded, session.symbol, session.cursor = True, fx["symbol"], fx["start_cursor"]
+    session.cash = session.starting_cash = fx.get("start_cash", DEFAULT_START_CASH)
     session.worst_equity = session.starting_cash
-    session.tier = START_TIER[req.experience]
-    add_event(session, "START", f"Day {session.cursor + 1}: replay starts on {session.symbol} with {usd(session.cash)} in cash. "
+    session.tier = req.tier
+    day, _ = tick_label(session.cursor)
+    add_event(session, "START", f"Day {day}: the floor opens with {usd(session.cash)} in cash. "
                        "The future is hidden.")
-    record(session, "POST", "/api/onboarding", {"experience": req.experience, "symbol": session.symbol})
+    record(session, "POST", "/api/onboarding", {"tier": req.tier, "symbol": session.symbol})
     return {"state": snapshot(session)}
 
 
@@ -437,38 +481,33 @@ async def post_onboarding(request: Request, req: OnboardingReq):
 async def post_advance(request: Request, req: AdvanceReq):
     session = session_for(request)
     require_onboarded(session)
-    last = len(session.bars) - 1
-    if session.cursor >= last:
-        raise ApiError(409, "REPLAY_FINISHED", "You have reached the last day of the replay.")
-    pending = find_prompts(session)
-    if pending:
-        raise ApiError(409, "PROMPT_PENDING", "Answer the safety-net prompt before moving on.", prompts=pending)
-    # Step one day at a time - never jump straight to cursor + n - so we can stop the
-    # instant something happens. That is what makes fast-forward safe: a fill or a
-    # safety-net prompt can never be skipped over.
+    if session.cursor >= LAST_TICK:
+        raise ApiError(409, "REPLAY_FINISHED", "You have reached the last tick of the replay.")
+    # Step one tick at a time - never jump straight to cursor + n - so we can stop the
+    # instant something happens. That is what makes fast-forward safe: a fill can never
+    # be skipped over. Open orders can sit on more than one symbol at once, so every tick
+    # checks each symbol that actually has one, not just the watched symbol.
     first_event, steps = len(session.events), 0
-    while steps < req.n and session.cursor < last:
-        session.cursor = sim.advance(session.cursor, 1, last)
+    while steps < req.n and session.cursor < LAST_TICK:
+        session.cursor = sim.advance(session.cursor, 1, LAST_TICK)
         steps += 1
-        bar = current_bar(session)
         stop_here = False
-        for hit in sim.check_open_orders_for_bar(session.orders, session.cursor, bar):
-            order = session.orders[hit["order_id"] - 1]
-            try:
-                execute(session, order, hit["price"], session.cursor, hit["reason"])
-            except sim.SimError as e:
-                cancel(session, order, e.code, e.message)
-            stop_here = True
-        found = find_prompts(session)
-        if found:
-            c = found[0]
-            add_event(session, "SAFETY_NET_PROMPT", f"Day {bar['day']}: {c['symbol']} is down {abs(c['loss_pct']):.1f}% "
-                               f"from your entry ({usd(c['avg_price'])}).")
-            stop_here = True
+        pending_symbols = {o["symbol"] for o in session.orders if o["status"] == "OPEN"}
+        for sym in sorted(pending_symbols):
+            bar = current_bar(session, sym)
+            same_symbol = [o for o in session.orders if o["symbol"] == sym]
+            for hit in sim.check_open_orders_for_bar(same_symbol, session.cursor, bar):
+                order = session.orders[hit["order_id"] - 1]
+                try:
+                    execute(session, order, hit["price"], session.cursor, hit["reason"])
+                except sim.SimError as e:
+                    cancel(session, order, e.code, e.message)
+                stop_here = True
         if stop_here:
             break
-    if session.cursor >= last:
-        add_event(session, "END", f"Day {session.cursor + 1}: the replay is over.")
+    if session.cursor >= LAST_TICK:
+        day, _ = tick_label(session.cursor)
+        add_event(session, "END", f"Day {day}: the replay is over.")
     record(session, "POST", "/api/advance", {"n": req.n})
     return {"advanced": steps, "events": session.events[first_event:], "state": snapshot(session)}
 
@@ -504,17 +543,18 @@ async def get_quote(request: Request, symbol: Optional[str] = None, as_of: Optio
 async def post_order(request: Request, req: OrderReq):
     session = session_for(request)
     require_onboarded(session)
-    if req.symbol.upper() != session.symbol:
-        raise ApiError(400, "SYMBOL_MISMATCH", f"This replay trades {session.symbol}.")
+    sym = req.symbol.upper()
+    if sym not in FIXTURES:
+        raise ApiError(404, "UNKNOWN_SYMBOL", f"Choose one of: {', '.join(FIXTURES)}.")
     if req.as_of is not None and req.as_of != session.cursor:
-        raise ApiError(409, "STALE_CURSOR", f"Your screen is on bar {req.as_of} but the replay is on bar {session.cursor}.",
+        raise ApiError(409, "STALE_CURSOR", f"Your screen is on tick {req.as_of} but the floor is on tick {session.cursor}.",
                        cursor=session.cursor)
     if req.type not in caps(session.tier)["order_types"]:
         need = next(t for t in TIERS if req.type in t["unlocks"]["order_types"])
         raise ApiError(403, "TIER_LOCKED", f"{req.type.title()} orders unlock at {need['title']}. {need['how_to_unlock']}",
                        required_tier=need["id"], tier=session.tier)
-    bar, pos = current_bar(session), session.positions.get(session.symbol)
-    order = {"id": len(session.orders) + 1, "symbol": session.symbol, "side": req.side, "type": req.type, "qty": req.qty,
+    bar, pos = current_bar(session, sym), session.positions.get(sym)
+    order = {"id": len(session.orders) + 1, "symbol": sym, "side": req.side, "type": req.type, "qty": req.qty,
              "limit_price": req.limit_price, "stop_price": req.stop_price, "status": "OPEN", "safety_net": False,
              "created_bar": session.cursor, "filled_bar": None, "fill_price": None, "reason": None}
     try:
@@ -523,12 +563,17 @@ async def post_order(request: Request, req: OrderReq):
         raise sim_error(e)
     session.orders.append(order)
     fills = []
-    price = sim.immediate_fill_price(order, bar)
-    if price is not None:
-        fills.append(execute(session, order, price, session.cursor, order["type"]))
+    if order["type"] == "MARKET":
+        price, slip, quote = sim.slippage_fill_price(bar, order["side"])
+        fills.append(execute(session, order, price, session.cursor, order["type"], quote=quote, slip=slip))
     else:
-        level = usd(order["limit_price"] if order["type"] == "LIMIT" else order["stop_price"])
-        add_event(session, "ORDER", f"Day {bar['day']}: placed a {describe(order)} at {level}. It waits until the price reaches it.")
+        price = sim.immediate_fill_price(order, bar)          # a marketable limit: no slippage, see sim_engine
+        if price is not None:
+            fills.append(execute(session, order, price, session.cursor, order["type"]))
+        else:
+            level = usd(order["limit_price"] if order["type"] == "LIMIT" else order["stop_price"])
+            add_event(session, "ORDER", f"Day {bar['day']}: placed a {describe(order)} at {level}. It waits until the price reaches it.")
+    session.symbol = sym                    # trading a symbol also focuses the ticket/chart on it
     record(session, "POST", "/api/orders", req.model_dump(exclude_none=True))
     return {"order": order, "fills": fills, "state": snapshot(session)}
 
@@ -567,7 +612,8 @@ async def post_safety_net(request: Request, req: SafetyNetReq):
         raise ApiError(404, "NO_POSITION", f"You do not hold any {sym}.")
     if req.decision == "dismiss":
         session.dismissed.add(sym)
-        add_event(session, "SAFETY_NET_DISMISSED", f"Day {session.cursor + 1}: you chose to keep holding {sym} without a safety net.")
+        day, _ = tick_label(session.cursor)
+        add_event(session, "SAFETY_NET_DISMISSED", f"Day {day}: you chose to keep holding {sym} without a safety net.")
         record(session, "POST", "/api/safety-net", req.model_dump(exclude_none=True))
         return {"state": snapshot(session)}
     percent = DEFAULT_STOP_PERCENT if req.percent is None else req.percent
@@ -578,7 +624,7 @@ async def post_safety_net(request: Request, req: SafetyNetReq):
     if sim.protected_qty(session.orders, sym) >= pos["qty"]:
         raise ApiError(409, "ALREADY_PROTECTED", f"Your {sym} position already has a safety net.")
     stop = req.stop_price if req.stop_price is not None else sim.stop_price_for(pos["avg_price"], -percent)
-    bar = current_bar(session)
+    bar = current_bar(session, sym)
     order = {"id": len(session.orders) + 1, "symbol": sym, "side": "SELL", "type": "STOP", "qty": pos["qty"],
              "limit_price": None, "stop_price": stop, "status": "OPEN", "safety_net": True,
              "created_bar": session.cursor, "filled_bar": None, "fill_price": None, "reason": None}
@@ -625,7 +671,8 @@ async def post_comprehension(request: Request, req: ComprehensionReq):
         target = chk.get("unlocks")
         if target and TIER_IDS.index(target) > TIER_IDS.index(session.tier):
             session.tier = unlocked = target
-            add_event(session, "UNLOCK", f"Day {session.cursor + 1}: unlocked {tier_title(target)}.")
+            day, _ = tick_label(session.cursor)
+            add_event(session, "UNLOCK", f"Day {day}: unlocked {tier_title(target)}.")
     record(session, "POST", "/api/comprehension", {"check_id": req.check_id, "choice": req.choice})
     return {"correct": correct, "attempt": attempt, "unlocked_tier": unlocked,
             "explanation": chk["explain_correct"] if correct else chk["explain_wrong"], "state": snapshot(session)}
@@ -646,7 +693,8 @@ class SceneReq(BaseModel):
 def story_state(session):
     """Computed state + flags, rebuilt from the portfolio on every call so it cannot drift."""
     if session.onboarded:
-        summary = sim.portfolio_summary(session.cash, session.positions, current_bar(session)["c"])
+        prices = {sym: current_bar(session, sym)["c"] for sym in session.positions}
+        summary = sim.portfolio_summary(session.cash, session.positions, prices)
         equity = summary["equity"]
         positions = [{"symbol": sym, "cost": round(p["qty"] * p["avg_price"], 2)}
                      for sym, p in session.positions.items()]
@@ -681,12 +729,14 @@ def apply_effect(session, effect):
                            "Sell something first, or choose the other option.",
                            required=amount, available=round(session.cash, 2))
         session.cash = round(session.cash - amount, 2)
-        add_event(session, "WITHDRAW", f"Day {session.cursor + 1}: took {usd(amount)} out of the account.")
+        day, _ = tick_label(session.cursor)
+        add_event(session, "WITHDRAW", f"Day {day}: took {usd(amount)} out of the account.")
 
     amount = effect.get("deposit")
     if amount is not None:
         session.cash = round(session.cash + amount, 2)
-        add_event(session, "DEPOSIT", f"Day {session.cursor + 1}: put {usd(amount)} into the account.")
+        day, _ = tick_label(session.cursor)
+        add_event(session, "DEPOSIT", f"Day {day}: put {usd(amount)} into the account.")
 
 
 def _graph(act_id):

@@ -30,12 +30,16 @@ def _usd(x):
 
 
 def price_at(bars, cursor):
-    """The bar at `cursor`, clamped to the fixture. Returns o/h/l/c plus its index `i` and `day`."""
+    """The bar at `cursor`, clamped to the fixture. Returns o/h/l/c, its index `i`, its
+    calendar `day`/`time` label, and `n` - the ambient volatility at this tick, which the
+    slippage model reads (how fast the market is moving right now, independent of the
+    scripted price path)."""
     if not bars:
         raise SimError("NO_DATA", "The fixture has no bars.")
     i = max(0, min(int(cursor), len(bars) - 1))
     b = bars[i]
-    return {"i": i, "day": b["day"], "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"]}
+    return {"i": i, "day": b["day"], "time": b.get("time"), "o": b["o"], "h": b["h"],
+            "l": b["l"], "c": b["c"], "n": b.get("n", 0.0)}
 
 
 def advance(cursor, n, last_bar):
@@ -82,11 +86,27 @@ def validate_order(order, price, cash, position_qty):
                            required=need, available=round(cash, 2))
 
 
+MAX_SLIPPAGE = 0.012           # 1.2% cap, however fast the market is moving
+SLIPPAGE_PER_VOL = 0.45        # slippage grows with the bar's ambient volatility (n)
+
+
+def slippage_fill_price(bar, side):
+    """A market order never fills at the quote: the price moves against the trader by an
+    amount proportional to how fast the market is moving right now (`bar["n"]`), capped at
+    MAX_SLIPPAGE. Calm markets cost pennies; a fast-moving one costs real money - which is
+    exactly when a new investor is most likely to be pressing the button. Returns
+    (fill_price, slip_fraction, quote) so the response can show the gap, not just the fill."""
+    slip = min(MAX_SLIPPAGE, bar["n"] * SLIPPAGE_PER_VOL)
+    signed = slip if side == "BUY" else -slip
+    return round(bar["c"] * (1 + signed), 2), slip, bar["c"]
+
+
 def immediate_fill_price(order, bar):
-    """Market orders fill at the bar's close. A limit that is already marketable fills at the
-    close too (never worse than the limit). Everything else rests and returns None."""
+    """Market orders fill against the trader, nudged by slippage (see slippage_fill_price).
+    A limit that is already marketable fills at the close (never worse than the limit, and
+    never slipped - the limit is the guarantee). Everything else rests and returns None."""
     if order["type"] == "MARKET":
-        return bar["c"]
+        return slippage_fill_price(bar, order["side"])[0]
     if order["type"] == "LIMIT":
         c, limit = bar["c"], order["limit_price"]
         if (order["side"] == "BUY" and c <= limit) or (order["side"] == "SELL" and c >= limit):
@@ -172,9 +192,13 @@ def shadow_delta(kept_lots, price):
     return round(sum(lot["qty"] * (price - lot["fill_price"]) for lot in kept_lots), 2)
 
 
-def portfolio_summary(cash, positions, price):
-    """Equity and unrealized P&L for positions marked at `price`."""
-    value = sum(p["qty"] * price for p in positions.values())
+def portfolio_summary(cash, positions, prices):
+    """Equity and unrealized P&L across positions that may span more than one symbol.
+
+    `prices` is {symbol: current_price} - a session can hold several symbols at once from
+    one shared cash balance (the trading floor lets you buy anything on the watchlist), so
+    each position must be marked at its OWN price, never a single shared one."""
+    value = sum(p["qty"] * prices[sym] for sym, p in positions.items())
     cost = sum(p["qty"] * p["avg_price"] for p in positions.values())
     pnl = value - cost
     return {"market_value": round(value, 2), "equity": round(cash + value, 2),

@@ -2,16 +2,22 @@
 """
 scripts/build_fixtures.py
 
-Generates the deterministic, SYNTHETIC OHLC replay fixtures in fixtures/*.json.
+Generates the deterministic, SYNTHETIC intraday replay fixtures in fixtures/*.json.
 Owned by B (Backend). Fixtures are generated, never hand-edited.
 
-The prices are not real market data. Each path is pinned to hand-chosen anchor
-closes and filled in with seeded noise (a Brownian bridge between anchors), so
-every run on every machine produces byte-identical files.
+This is a faithful Python port of the tape generator that used to live in richher.html's
+buildTape() (mulberry32 PRNG + AR(1) noise + anchor taper), so the six companies, their
+seeds and their scripted arc (a buy invitation, a peak, a slide to a -50% trough, two
+scares on the way back, an exit, a finish above the start) produce byte-identical prices
+to what the offline demo already showed. Every dollar figure the coach speaks was tuned
+against this exact output; changing the algorithm or a seed changes what she can truthfully
+say. Ported and cross-checked bar-for-bar against the original JS (o/h/l/c/v/n, all 390
+bars, all six symbols) before this file replaced the old daily-bar generator.
 
-HLX is the guided-demo symbol. Its generator keeps searching seeds until the
-path has a -22.7% max drawdown between bars 45 and 60 AND the demo beats in
-SPEC.md section 12 hold (safety-net prompt, then the stop fill at its stop price).
+390 five-minute bars = one trading week (78 bars/day * 5 days). "i" is the tick index into
+the tape; "day"/"time" are the wall-clock label the frontend shows. All six symbols share
+one clock: the trading floor lets a session hold positions in more than one of them at once
+from a single cash balance, so they must all be addressable at the same tick.
 
 Run:    python scripts/build_fixtures.py           # (re)write fixtures/
 Check:  python scripts/build_fixtures.py --check   # exit 1 if files differ from a fresh build
@@ -19,98 +25,190 @@ Check:  python scripts/build_fixtures.py --check   # exit 1 if files differ from
 
 import json
 import math
-import random
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "fixtures"
 
-N_BARS = 90
-GENERATOR_VERSION = 1
-DRAWDOWN_TARGET_PCT = -22.7           # HLX, bars 45 -> 60
-FAST, SLOW = 5, 20                    # MA-crossover windows
-PROMPT_PCT, STOP_PCT = -8.0, -10.0    # mirrors server/sim_engine.py
-SEED_SEARCH_LIMIT = 20000
+GENERATOR_VERSION = 2
+TICKS_PER_DAY = 78          # 6.5 trading hours of 5-minute bars
+TAPE_LEN = 390               # 5 trading days
+LAST_T = TAPE_LEN - 1
+MASK = 0xFFFFFFFF
+
+# The scripted arc, in tick indices. Chosen so the featured stock peaks just after the
+# invitation to buy, falls exactly 50% off that peak, scares twice on the way back, and
+# finishes above where it started. Losses first, long-term profit second.
+T_BUY, T_PEAK, T_SLIDE, T_TROUGH, T_SCARE, T_EXIT = 60, 95, 150, 215, 280, 330
 
 SYMBOLS = [
     {
-        "symbol": "HLX", "name": "Helix Devices (synthetic replay)", "volatility": "medium",
-        "blurb": "A steady climb, then a sharp pullback. The deepest drop of the six.",
-        "start_cursor": 40, "seed": 1000, "sigma": 0.009, "gap": 0.003, "wick": 0.004,
-        "anchors": [(0, 150.00), (40, 168.00), (45, 172.00), (60, 132.96), (89, 158.00)],
+        "symbol": "VOLT", "name": "Voltaic Cell Co.", "kind": "Stock",
+        "sector": "Battery cells for cars and grids", "volatility": "large swings",
+        "featured": True, "vol_base": 210e3,
+        "blurb": "One company, one industry. Swings hardest in both directions.",
+        "seed": 90210, "start_cash": 100.00,
+        "anchors": [
+            (0, 48.00, 0.0045), (T_BUY, 50.20, 0.0050), (T_PEAK, 52.40, 0.0055),
+            (T_SLIDE, 42.80, 0.0110), (T_TROUGH, 26.20, 0.0190), (250, 31.50, 0.0150),
+            (T_SCARE, 27.90, 0.0165), (T_EXIT, 41.00, 0.0105), (LAST_T, 56.80, 0.0070)],
     },
     {
-        "symbol": "BRD", "name": "Broadline 500 Fund (synthetic replay)", "volatility": "low",
-        "blurb": "A broad index fund: gentle moves and shallow dips.",
-        "start_cursor": 30, "seed": 2000, "sigma": 0.0045, "gap": 0.0015, "wick": 0.0015,
-        "anchors": [(0, 480.00), (30, 492.00), (60, 486.00), (89, 505.00)],
+        "symbol": "ORB", "name": "Orbit 500 Fund", "kind": "Fund",
+        "sector": "Five hundred companies in one purchase", "volatility": "small swings",
+        "fund": True, "vol_base": 88e3,
+        "blurb": "Not a company. One purchase that owns a slice of five hundred of them.",
+        "seed": 5150, "start_cash": 100.00,
+        "anchors": [
+            (0, 100.00, 0.0013), (T_BUY, 101.60, 0.0014), (T_PEAK, 104.20, 0.0016),
+            (T_SLIDE, 99.50, 0.0028), (T_TROUGH, 92.60, 0.0040), (250, 95.10, 0.0032),
+            (T_SCARE, 93.80, 0.0034), (T_EXIT, 101.30, 0.0024), (LAST_T, 109.40, 0.0018)],
     },
     {
-        "symbol": "KIN", "name": "Kinetic Apparel (synthetic replay)", "volatility": "medium",
-        "blurb": "A choppy consumer stock that drifts sideways with a mid-sized dip.",
-        "start_cursor": 25, "seed": 3000, "sigma": 0.011, "gap": 0.004, "wick": 0.005,
-        "anchors": [(0, 92.00), (20, 98.00), (50, 88.00), (70, 90.00), (89, 95.00)],
+        "symbol": "KIN", "name": "Kindred Grocers", "kind": "Stock",
+        "sector": "Supermarkets", "volatility": "small swings", "vol_base": 31e3,
+        "blurb": "People buy food in every kind of week. It moves slowly.",
+        "seed": 4242, "start_cash": 100.00,
+        "anchors": [
+            (0, 31.00, 0.0016), (T_PEAK, 31.90, 0.0018), (T_SLIDE, 30.60, 0.0026),
+            (T_TROUGH, 29.40, 0.0034), (T_SCARE, 30.20, 0.0028), (LAST_T, 33.20, 0.0020)],
     },
     {
-        "symbol": "VLT", "name": "Voltaic Motors (synthetic replay)", "volatility": "high",
-        "blurb": "Big swings both ways: the same time window, a much larger potential loss.",
-        "start_cursor": 15, "seed": 4000, "sigma": 0.02, "gap": 0.008, "wick": 0.010,
-        "anchors": [(0, 240.00), (15, 262.00), (35, 196.00), (60, 228.00), (89, 215.00)],
+        "symbol": "HLX", "name": "Helix Biolabs", "kind": "Stock",
+        "sector": "Experimental medicines", "volatility": "large swings", "vol_base": 74e3,
+        "blurb": "Moves on its own news, on its own days. Rarely in step with the rest.",
+        "seed": 1337, "start_cash": 100.00,
+        "anchors": [
+            (0, 88.00, 0.0060), (50, 72.40, 0.0120), (T_PEAK, 80.10, 0.0090),
+            (T_SLIDE, 96.30, 0.0075), (T_TROUGH, 88.20, 0.0100), (T_SCARE, 103.50, 0.0080),
+            (LAST_T, 94.60, 0.0090)],
     },
     {
-        # The "patience is rewarded" fixture. Every other symbol ends flat or down, which made
-        # every outcome in the product a loss (see STORY.md section 3). This one dips -8.6%
-        # first - so the lesson still lands - then recovers and finishes +25%.
-        # Tuned so a half-in position ($42 of $100) just clears the +10% wish line at $110.50.
-        "symbol": "NVX", "name": "Novexa Systems (synthetic replay)", "volatility": "medium",
-        "blurb": "Dips early, then climbs. Start here: this is the guided walk-through.",
-        "start_cursor": 20, "seed": 6000, "sigma": 0.010, "gap": 0.003, "wick": 0.004,
-        "start_cash": 100.00,
-        "anchors": [(0, 18.50), (20, 21.00), (32, 19.20), (50, 21.40), (70, 24.00), (89, 26.25)],
+        "symbol": "MERI", "name": "Meridian Power", "kind": "Stock",
+        "sector": "Electricity utility", "volatility": "small swings", "vol_base": 22e3,
+        "blurb": "A utility. Dull on purpose, which is a feature and not a flaw.",
+        "seed": 606, "start_cash": 100.00,
+        "anchors": [
+            (0, 62.00, 0.0011), (T_SLIDE, 61.20, 0.0016), (T_TROUGH, 60.10, 0.0022),
+            (LAST_T, 64.40, 0.0013)],
     },
     {
-        "symbol": "BRW", "name": "Brightwater Coffee (synthetic replay)", "volatility": "low",
-        "blurb": "Slow and steady: small moves, small dips.",
-        "start_cursor": 30, "seed": 5000, "sigma": 0.0035, "gap": 0.0012, "wick": 0.0012,
-        "anchors": [(0, 62.00), (45, 64.50), (89, 66.00)],
+        "symbol": "CASA", "name": "Casa Coffee Group", "kind": "Stock",
+        "sector": "Coffee shops", "volatility": "medium swings", "vol_base": 45e3,
+        "blurb": "Enough shops to be steady, small enough to still get knocked about.",
+        "seed": 8899, "start_cash": 100.00,
+        "anchors": [
+            (0, 19.00, 0.0030), (T_PEAK, 20.80, 0.0034), (T_SLIDE, 18.10, 0.0055),
+            (T_TROUGH, 15.30, 0.0080), (T_SCARE, 16.90, 0.0060), (LAST_T, 21.60, 0.0038)],
     },
 ]
 
 
-def _normal(rng):
-    """Standard normal via Box-Muller on rng.random() (stable across Python versions)."""
-    u1 = 1.0 - rng.random()
-    u2 = rng.random()
-    return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
+# --------------------------------------------------------------------------- the PRNG
+
+def _mulberry32(seed):
+    """Same generator as web/index.html's mulberry32(), reproduced with unsigned 32-bit
+    modular arithmetic throughout. Addition, XOR, OR and multiplication mod 2**32 are all
+    representation-agnostic (the bit pattern is the same whether you call it signed or
+    unsigned), so keeping every intermediate value in [0, 2**32) and only interpreting it
+    as unsigned at the final division reproduces JS's Math.imul / >>> / |0 exactly without
+    needing a separate signed representation anywhere."""
+    state = seed & MASK
+
+    def rand():
+        nonlocal state
+        state = (state + 0x6D2B79F5) & MASK
+        t = state
+        a = (t ^ (t >> 15)) & MASK
+        b = (1 | t) & MASK
+        t = (a * b) & MASK                       # Math.imul(seed ^ seed>>>15, 1|seed)
+        c = (t ^ (t >> 7)) & MASK
+        d = (61 | t) & MASK
+        e = (c * d) & MASK                       # Math.imul(t ^ t>>>7, 61|t)
+        t2 = ((t + e) & MASK) ^ t                 # t + Math.imul(...) ^ t
+        return ((t2 ^ (t2 >> 14)) & MASK) / 4294967296
+
+    return rand
 
 
-def build_closes(cfg, rng):
-    """Noisy closes that hit every anchor exactly (noise is re-centred per segment)."""
-    anchors = cfg["anchors"]
-    closes = [0.0] * N_BARS
-    closes[0] = anchors[0][1]
-    for (a, pa), (b, pb) in zip(anchors, anchors[1:]):
-        n = b - a
-        raw = [cfg["sigma"] * _normal(rng) for _ in range(n)]
-        shift = (math.log(pb / pa) - sum(raw)) / n
-        price = pa
-        for k in range(n):
-            price *= math.exp(raw[k] + shift)
-            closes[a + 1 + k] = round(price, 2)
-        closes[b] = pb
-    return closes
+def _js_round(x):
+    """JS Math.round: round half toward +Infinity (not Python's round-half-to-even)."""
+    return math.floor(x + 0.5)
 
 
-def build_bars(cfg, closes, rng):
+def _r2(n):
+    return _js_round(n * 100) / 100
+
+
+def _clamp(n, lo, hi):
+    return max(lo, min(hi, n))
+
+
+# --------------------------------------------------------------------------- the tape
+
+def build_bars(anchors, seed, vol_base):
+    """anchors: [(tick, price, ambient_noise), ...]. Returns TAPE_LEN bars, each
+    {i, o, h, l, c, v, n}. `n` is the ambient volatility at that tick (how fast the market
+    is moving, independent of the scripted price path) - sim_engine's slippage model reads
+    it. Anchor prices land exactly on the cent; only the path between them is randomised,
+    so every dollar figure the coach quotes stays exact on every rebuild."""
+    rand = _mulberry32(seed)
+
+    def gauss():
+        r1 = rand() or 1e-9
+        r2v = rand()
+        return math.sqrt(-2 * math.log(r1)) * math.cos(2 * math.pi * r2v)
+
     bars = []
-    for i, c in enumerate(closes):
-        prev = closes[i - 1] if i else c
-        o = round(prev * (1 + cfg["gap"] * _normal(rng)), 2)
-        h = round(max(o, c) * (1 + abs(_normal(rng)) * cfg["wick"]), 2)
-        l = round(min(o, c) * (1 - abs(_normal(rng)) * cfg["wick"]), 2)
-        bars.append({"day": i + 1, "o": o, "h": max(h, o, c), "l": min(l, o, c), "c": c})
+    e = 0.0
+    a = 0
+    prev_close = anchors[0][1]
+
+    for i in range(TAPE_LEN):
+        while a < len(anchors) - 2 and i > anchors[a + 1][0]:
+            a += 1
+        t0, p0, n0 = anchors[a]
+        t1, p1, n1 = anchors[a + 1]
+        u = _clamp((i - t0) / (t1 - t0), 0, 1)
+        ease = (1 - math.cos(math.pi * u)) / 2      # smooth between anchors
+        taper = math.sin(math.pi * u)                # 0 at both anchors
+        base = p0 + (p1 - p0) * ease
+        # Ambient volatility is interpolated but never tapered: the market keeps moving
+        # even at the ticks the coach stops on, which is where the slippage lesson bites.
+        ambient = n0 + (n1 - n0) * ease
+        noise = ambient * taper                       # the displacement IS tapered
+
+        e = e * 0.72 + gauss() * 0.46                 # AR(1): autocorrelated wiggle
+        close = max(0.5, base * (1 + e * noise))
+
+        open_ = prev_close
+        lo, hi = min(open_, close), max(open_, close)
+        wick = max(hi * noise * 0.55, (hi - lo) * 0.3)
+        move = abs(close - open_) / (open_ or 1)
+        bars.append({
+            "i": i,
+            "o": _r2(open_),
+            "h": _r2(hi + abs(gauss()) * wick),
+            "l": _r2(max(0.25, lo - abs(gauss()) * wick)),
+            "c": _r2(close),
+            "v": _js_round(vol_base * (0.5 + move * 90 + rand() * 0.7)),
+            "n": round(ambient, 6),
+        })
+        prev_close = close
+
+    for t, p, _n in anchors:
+        if t <= LAST_T:
+            bars[t]["c"] = _r2(p)
+            bars[t]["h"] = max(bars[t]["h"], _r2(p))
+            bars[t]["l"] = min(bars[t]["l"], _r2(p))
     return bars
+
+
+def _clock(i):
+    day = i // TICKS_PER_DAY + 1
+    mins = 9 * 60 + 30 + (i % TICKS_PER_DAY) * 5
+    return day, f"{mins // 60:02d}:{mins % 60:02d}"
 
 
 def max_drawdown(closes):
@@ -125,101 +223,23 @@ def max_drawdown(closes):
     return worst
 
 
-def ma_signals(closes):
-    """Precomputed MA-crossover signals (fast SMA crossing the slow SMA)."""
-    signals, prev = [], None
-    for i in range(SLOW - 1, len(closes)):
-        fast = sum(closes[i - FAST + 1:i + 1]) / FAST
-        slow = sum(closes[i - SLOW + 1:i + 1]) / SLOW
-        state = "UP" if fast > slow else "DOWN"
-        if prev is not None and state != prev:
-            signals.append({"bar": i, "day": i + 1,
-                            "side": "BUY" if state == "UP" else "SELL", "price": closes[i]})
-        prev = state
-    return signals
-
-
-def demo_beats(bars, entry_bar):
-    """Where the guided demo's key moments fall for a buy at entry_bar's close, or None."""
-    entry = bars[entry_bar]["c"]
-    prompt_price = entry * (1 + PROMPT_PCT / 100)
-    stop = round(entry * (1 + STOP_PCT / 100), 2)
-    prompt_bar = next((i for i in range(entry_bar + 1, len(bars))
-                       if bars[i]["c"] <= prompt_price + 1e-9), None)
-    stop_bar = next((i for i in range(entry_bar + 1, len(bars)) if bars[i]["l"] <= stop), None)
-    if prompt_bar is None or stop_bar is None:
-        return None
-    return {"entry_bar": entry_bar, "entry_price": entry, "prompt_bar": prompt_bar,
-            "prompt_price": bars[prompt_bar]["c"], "stop_price": stop, "stop_bar": stop_bar,
-            "stop_fill_price": min(stop, bars[stop_bar]["o"])}
-
-
-def problems_common(bars):
-    out = []
-    if len(bars) != N_BARS:
-        out.append(f"expected {N_BARS} bars, got {len(bars)}")
-    for b in bars:
-        if not (b["h"] >= max(b["o"], b["c"]) and b["l"] <= min(b["o"], b["c"]) and b["l"] > 0):
-            out.append(f"day {b['day']}: OHLC out of order")
-            break
-    return out
-
-
-def problems_aapl(cfg, bars):
-    """The guarantees behind 'the walk-into-the-dip beat is guaranteed, not hoped for'."""
-    closes = [b["c"] for b in bars]
-    dd, peak_i, trough_i = max_drawdown(closes)
-    out = []
-    if (peak_i, trough_i) != (45, 60):
-        out.append(f"worst drawdown spans bars {peak_i}->{trough_i}, need 45->60")
-    if round(dd, 1) != DRAWDOWN_TARGET_PCT:
-        out.append(f"max drawdown {dd:.2f}%, need {DRAWDOWN_TARGET_PCT}%")
-    if closes.index(max(closes)) != 45 or closes.index(min(closes)) != 60:
-        out.append("bar 45 must be the highest close and bar 60 the lowest")
-    beats = demo_beats(bars, cfg["start_cursor"])
-    if beats is None:
-        return out + ["demo beats not reachable"]
-    if not 46 <= beats["prompt_bar"] <= 56:
-        out.append(f"prompt bar {beats['prompt_bar']} outside the decline (46-56)")
-    if beats["prompt_price"] <= beats["stop_price"]:
-        out.append("prompt fires below the stop price, so the safety net cannot protect")
-    if beats["stop_bar"] <= beats["prompt_bar"]:
-        out.append("stop would trigger before or on the prompt bar")
-    if beats["stop_fill_price"] != beats["stop_price"]:
-        out.append("stop bar gaps below the stop price, so the fill would not be round")
-    return out
-
-
-def build_symbol(cfg):
-    """Searches seeds from cfg['seed'] upward until every guarantee holds."""
-    for seed in range(cfg["seed"], cfg["seed"] + SEED_SEARCH_LIMIT):
-        rng = random.Random(seed)
-        closes = build_closes(cfg, rng)
-        bars = build_bars(cfg, closes, rng)
-        problems = problems_common(bars)
-        if cfg["symbol"] == "HLX":
-            problems += problems_aapl(cfg, bars)
-        if not problems:
-            return seed, bars
-    raise RuntimeError(f"{cfg['symbol']}: no seed satisfied the constraints")
-
-
 def build_fixture(cfg):
-    seed, bars = build_symbol(cfg)
+    bars = build_bars(cfg["anchors"], cfg["seed"], cfg["vol_base"])
+    for b in bars:
+        b["day"], b["time"] = _clock(b["i"])
     closes = [b["c"] for b in bars]
     dd, peak_i, trough_i = max_drawdown(closes)
-    meta = {"max_drawdown_pct": round(dd, 1), "peak_bar": peak_i, "trough_bar": trough_i,
+    meta = {"max_drawdown_pct": round(dd, 1), "peak_tick": peak_i, "trough_tick": trough_i,
             "first_close": closes[0], "last_close": closes[-1]}
-    if cfg["symbol"] == "HLX":
-        meta["demo"] = demo_beats(bars, cfg["start_cursor"])
     return {
-        "symbol": cfg["symbol"], "name": cfg["name"], "blurb": cfg["blurb"],
-        "volatility": cfg["volatility"], "synthetic": True,
-        "generator": {"script": "scripts/build_fixtures.py", "seed": seed,
+        "symbol": cfg["symbol"], "name": cfg["name"], "kind": cfg["kind"],
+        "sector": cfg["sector"], "blurb": cfg["blurb"], "volatility": cfg["volatility"],
+        "featured": cfg.get("featured", False), "fund": cfg.get("fund", False),
+        "synthetic": True,
+        "generator": {"script": "scripts/build_fixtures.py", "seed": cfg["seed"],
                       "version": GENERATOR_VERSION},
-        "start_cursor": cfg["start_cursor"], "start_cash": cfg.get("start_cash", 10000.00), "meta": meta,
-        "strategy": {"name": f"MA crossover ({FAST}/{SLOW})", "fast": FAST, "slow": SLOW,
-                     "signals": ma_signals(closes)},
+        "ticks_per_day": TICKS_PER_DAY, "tape_len": TAPE_LEN,
+        "start_cursor": 0, "start_cash": cfg["start_cash"], "meta": meta,
         "bars": bars,
     }
 
@@ -247,14 +267,15 @@ def main(argv):
         print(f"fixtures OK ({len(built)} files match a fresh build)")
         return 0
     OUT_DIR.mkdir(exist_ok=True)
+    for old in OUT_DIR.glob("*.json"):
+        if old.name not in built:
+            old.unlink()
     for name, text in built.items():
         (OUT_DIR / name).write_text(text, encoding="utf-8", newline="\n")
         fx = json.loads(text)
         m = fx["meta"]
-        print(f"{name:11} seed={fx['generator']['seed']:<5} max drawdown {m['max_drawdown_pct']:>6}% "
-              f"(bars {m['peak_bar']}->{m['trough_bar']})  start bar {fx['start_cursor']}")
-    demo = json.loads(built["HLX.json"])["meta"]["demo"]
-    print("HLX demo beats:", json.dumps(demo))
+        print(f"{name:10} seed={fx['generator']['seed']:<6} max drawdown {m['max_drawdown_pct']:>6}% "
+              f"(ticks {m['peak_tick']}->{m['trough_tick']})  {fx['name']}")
     return 0
 
 

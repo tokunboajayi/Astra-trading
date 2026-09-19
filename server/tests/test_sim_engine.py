@@ -72,7 +72,7 @@ def test_validate_order_accepts_a_good_stop():
 
 
 def test_market_and_marketable_limit_fill_at_the_close():
-    bar = {"o": 99.0, "h": 103.0, "l": 98.0, "c": 101.0}
+    bar = {"o": 99.0, "h": 103.0, "l": 98.0, "c": 101.0, "n": 0.0}     # n=0: no slippage, isolates the other paths
     assert sim.immediate_fill_price({"type": "MARKET", "side": "BUY"}, bar) == 101.0
     assert sim.immediate_fill_price(limit("BUY", 105.0), bar) == 101.0     # never worse than the limit
     assert sim.immediate_fill_price(limit("BUY", 100.0), bar) is None      # rests
@@ -143,11 +143,46 @@ def test_shadow_benchmark_measures_what_ignoring_the_safety_net_would_have_done(
 
 
 def test_portfolio_summary():
-    s = sim.portfolio_summary(8_500.0, POS, 138.0)
+    s = sim.portfolio_summary(8_500.0, POS, {"HLX": 138.0})
     assert s == {"market_value": 1_380.0, "equity": 9_880.0, "unrealized_pnl": -120.0, "unrealized_pnl_pct": -8.0}
-    assert sim.portfolio_summary(10_000.0, {}, 100.0)["unrealized_pnl_pct"] == 0.0
+    assert sim.portfolio_summary(10_000.0, {}, {})["unrealized_pnl_pct"] == 0.0
+
+
+def test_portfolio_summary_marks_each_symbol_at_its_own_price():
+    """A session can hold more than one symbol from one cash balance: a shared price would
+    silently mis-value every position but the one it was computed for."""
+    positions = {"VOLT": {"qty": 2, "avg_price": 50.0}, "ORB": {"qty": 1, "avg_price": 100.0}}
+    s = sim.portfolio_summary(0.0, positions, {"VOLT": 40.0, "ORB": 110.0})
+    assert s["market_value"] == 190.0                    # 2*40 + 1*110
+    assert s["unrealized_pnl"] == -10.0                  # (80-100) + (110-100)
 
 
 def test_stop_price_for():
     assert sim.stop_price_for(168.0) == 151.2
     assert sim.stop_price_for(150.0, -5) == 142.5
+
+
+def test_slippage_grows_with_volatility_and_always_hurts_the_trader():
+    calm = {"c": 100.0, "n": 0.001}
+    fast = {"c": 100.0, "n": 0.05}
+    buy_calm, slip_calm, quote = sim.slippage_fill_price(calm, "BUY")
+    assert quote == 100.0 and slip_calm == pytest.approx(0.00045) and buy_calm > 100.0
+    sell_calm, _, _ = sim.slippage_fill_price(calm, "SELL")
+    assert sell_calm < 100.0 and (100.0 - sell_calm) == pytest.approx(buy_calm - 100.0)
+    buy_fast, slip_fast, _ = sim.slippage_fill_price(fast, "BUY")
+    assert slip_fast > slip_calm and buy_fast > buy_calm
+
+
+def test_slippage_is_capped_however_fast_the_market_moves():
+    wild = {"c": 100.0, "n": 10.0}
+    price, slip, _ = sim.slippage_fill_price(wild, "BUY")
+    assert slip == sim.MAX_SLIPPAGE
+    assert price == round(100.0 * (1 + sim.MAX_SLIPPAGE), 2)
+
+
+def test_market_orders_fill_with_slippage_but_limits_do_not():
+    bar = {"o": 99.0, "h": 103.0, "l": 98.0, "c": 101.0, "n": 0.02}
+    market = sim.immediate_fill_price({"type": "MARKET", "side": "BUY"}, bar)
+    assert market > 101.0                                  # slipped against the buyer
+    limit_fill = sim.immediate_fill_price(limit("BUY", 105.0), bar)
+    assert limit_fill == 101.0                              # unslipped: the limit is the guarantee

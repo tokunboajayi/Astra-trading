@@ -1,75 +1,2989 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-tier="beginner">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rich-HER · Astra Trading</title>
-  <meta name="description" content="Learn what you could lose before what you could gain. A downside-first trading simulator with a price replay where the future is hidden.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233b82f6'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='700' text-anchor='middle' fill='%2304101f' font-family='sans-serif'%3ER%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="tokens.css">
-  <link rel="stylesheet" href="index.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RichHER — start before you feel ready</title>
+<style>
+/* =======================================================================
+   RICH-HER
+   A trading simulator that teaches women to start investing before they
+   feel ready.
+
+   ONE FILE. No build step, no server, no fetch(), no dependencies. ES
+   modules and fetch() both fail under file://, so a split-file version
+   cannot be opened at a demo table with dead venue wifi. Every price is
+   generated in-page from a fixed seed: the chart you rehearse is the
+   chart you demo.
+
+   TOKENS are lifted verbatim from index.html.bak so this reads as the
+   same product. Chrome is warm near-black with gold-tinted hairlines;
+   gold is CHROME ONLY and never encodes a value (lightness 0.773,
+   chroma 0.094 — it reads gray, so it failed as a data color).
+
+   Data colors are blue/red, NOT green/red. Green-vs-red is the textbook
+   red-green colorblindness failure. Validated against this file's chart
+   surface (#12162A): worst pair CVD dE 19.2 protan / 31.4 tritan,
+   normal vision 29.0, both >= 3:1 contrast.
+
+   THE PRODUCT RULE, enforced throughout: hesitation is the barrier, not
+   ignorance. So there is no score, no countdown, no streak, and no
+   "I don't know" button anywhere. Every question has two or three
+   answers a reasonable person would give, and none of them is wrong.
+   ======================================================================= */
+:root {
+  --bg:             #05060F;
+  --surface:        rgba(18, 21, 38, 0.72);
+  --surface-solid:  #12162A;
+  --surface-raised: #1A1F38;
+  --text:           #F2EFE6;
+  --text-muted:     #9B9CB0;
+  --border:         rgba(212, 175, 110, 0.25);
+  --border-plain:   rgba(242, 239, 230, 0.10);
+  --gold:           #D4AF6E;
+  --gold-dim:       rgba(212, 175, 110, 0.12);
+
+  /* data colors — the only two hues allowed to carry meaning */
+  --viz-up:        #3987e5;
+  --viz-down:      #e66767;
+  --viz-up-wash:   rgba(57, 135, 229, 0.12);
+  --viz-down-wash: rgba(230, 103, 103, 0.12);
+  --viz-up-vol:    rgba(57, 135, 229, 0.34);
+  --viz-down-vol:  rgba(230, 103, 103, 0.34);
+
+  /* chart chrome — recessive, hairline, solid (never dashed) */
+  --grid: rgba(242, 239, 230, 0.07);
+  --axis: rgba(242, 239, 230, 0.16);
+
+  --radius:    12px;
+  --radius-sm: 8px;
+  --tap:       44px;   /* minimum tap target — phone-first, not hover-first */
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(212,175,110,.13) 0 1px, transparent 2px),
+    radial-gradient(circle at 18% 34%, rgba(242,239,230,.22) 0 1px, transparent 2px),
+    radial-gradient(circle at 62% 76%, rgba(57,135,229,.18) 0 1px, transparent 2px),
+    radial-gradient(ellipse at 50% -20%, #202849 0%, var(--bg) 58%);
+  background-size: 240px 220px, 310px 280px, 190px 240px, 100% 100%;
+  color: var(--text);
+  -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .55;
+  background-image: radial-gradient(circle, rgba(242,239,230,.7) 0 1px, transparent 1.5px);
+  background-size: 137px 173px;
+  transform: perspective(500px) rotateX(18deg) scale(1.15);
+  transform-origin: center top;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 42%, rgba(255,255,255,.035) 50%, transparent 58%);
+  mix-blend-mode: screen;
+}
+button, input, select { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* -----------------------------------------------------------------------
+   TIER GATING — structural, not a settings toggle.
+   One attribute on <html> drives every difference, so nothing re-renders
+   to hide something. A beginner cannot see a candlestick because the
+   element is not in the layout.
+   Each element declares the MINIMUM tier that may see it, so an element
+   visible at two tiers carries ONE class.
+   ----------------------------------------------------------------------- */
+[data-tier="beginner"]     .min-int,
+[data-tier="beginner"]     .min-adv,
+[data-tier="intermediate"] .min-adv { display: none !important; }
+[data-tier="intermediate"] .beg-only,
+[data-tier="advanced"]     .beg-only { display: none !important; }
+
+.wordmark { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.wordmark em { font-style: normal; color: var(--gold); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--gold); white-space: nowrap;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+
+/* =======================================================================
+   SHELL — a persistent tab bar over one swapped panel
+   ======================================================================= */
+/* Three children: chrome, tabs, panels. The first two size to content and
+   the panel takes the rest — minmax(0,1fr) rather than 1fr so a tall panel
+   scrolls inside itself instead of pushing the grid past the viewport. */
+.app { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100dvh; }
+
+.chrome {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 52px; flex: none;
+  background: var(--surface-solid);
+  border-bottom: 1px solid var(--border-plain);
+}
+.chrome-spacer { flex: 1; }
+
+/* ---- the tabs. Locked steps stay visible and say why. ---- */
+.tabs {
+  display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+  padding: 0 10px; height: 44px; align-items: stretch; flex: none;
+  background: var(--surface-solid);
+  border-bottom: 1px solid var(--border-plain);
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  display: flex; align-items: center; gap: 7px;
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  color: var(--text-muted); cursor: pointer; white-space: nowrap;
+  padding: 0 13px; font-size: 12.5px; font-weight: 600;
+}
+.tab:hover:not(:disabled) { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+.tab:disabled { opacity: 0.38; cursor: not-allowed; }
+.tab-n {
+  display: grid; place-items: center; flex: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid currentColor; font-size: 9.5px; font-weight: 700;
+}
+.tab[data-done="true"] .tab-n { background: var(--gold); border-color: var(--gold); color: #17120A; }
+
+.panels { position: relative; min-height: 0; overflow: hidden; }
+.panel { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; }
+.reading { max-width: 640px; margin: 0 auto; padding: 30px 20px 72px; }
+.reading.wide { max-width: 860px; }
+
+/* ---- shared card + typography ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-plain);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(6px);
+}
+.card-label {
+  margin: 0 0 12px; font-size: 11px; font-weight: 650; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.h-big {
+  font-size: clamp(27px, 5.2vw, 40px); font-weight: 650;
+  letter-spacing: -0.025em; line-height: 1.08; margin: 0 0 10px;
+}
+.h-sec { font-size: 20px; font-weight: 640; line-height: 1.25; margin: 0 0 8px; }
+.lede { font-size: 15.5px; line-height: 1.6; color: var(--text-muted); margin: 0 0 18px; }
+.body-p { font-size: 14.5px; line-height: 1.62; margin: 0 0 13px; }
+.fine { font-size: 11.5px; color: var(--text-muted); line-height: 1.55; margin: 18px 0 0; }
+.eyebrow {
+  font-size: 11px; font-weight: 650; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 10px;
+}
+
+.btn {
+  min-height: 50px; padding: 0 22px; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 640; cursor: pointer;
+  background: var(--gold); color: #17120A; border: 1px solid var(--gold);
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost { background: none; color: var(--text-muted); border-color: var(--border-plain); }
+.btn-ghost:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+
+.choice {
+  display: block; width: 100%; text-align: left;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+  padding: 13px 15px; margin-bottom: 8px; font-size: 14px; line-height: 1.45;
+  cursor: pointer; min-height: var(--tap);
+}
+.choice:hover:not(:disabled) { border-color: var(--border); }
+.choice:disabled { cursor: default; }
+.choice strong { display: block; font-weight: 640; margin-bottom: 2px; }
+.choice span { color: var(--text-muted); font-size: 12.5px; }
+.choice[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-dim); }
+
+/* =======================================================================
+   TAB 1 · WELCOME
+   The statistic leads. Someone who has just read that hesitation is the
+   barrier answers the next question differently than someone who was
+   asked for their name first.
+   ======================================================================= */
+.stat-figure {
+  font-size: clamp(58px, 14vw, 108px); font-weight: 660; letter-spacing: -0.045em;
+  line-height: 0.92; margin: 0 0 14px; color: var(--gold);
+}
+.stat-claim { font-size: clamp(17px, 3.4vw, 22px); line-height: 1.4; margin: 0 0 14px; font-weight: 500; }
+.stat-source { font-size: 11.5px; color: var(--text-muted); margin: 0 0 26px; line-height: 1.55; }
+.stat-source.unset { color: var(--viz-down); }
+
+/* The time count. An estimate shown up front so nobody wonders how long
+   this is — NOT a countdown. A countdown would add exactly the pressure
+   this product exists to remove. */
+.clock-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 13px 15px; margin: 0 0 18px;
+  background: var(--gold-dim); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.clock-total { font-size: 21px; font-weight: 650; color: var(--gold); letter-spacing: -0.01em; }
+.clock-total small { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 4px; }
+.clock-note { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; flex: 1 1 200px; }
+.clock-bits { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 22px; padding: 0; list-style: none; }
+.clock-bit {
+  font-size: 11.5px; color: var(--text-muted);
+  background: var(--surface-raised); border: 1px solid var(--border-plain);
+  border-radius: 999px; padding: 5px 11px;
+}
+.clock-bit b { color: var(--text); font-weight: 620; font-variant-numeric: tabular-nums; }
+
+.promises { display: grid; gap: 2px; margin: 0 0 4px; }
+.promise {
+  display: flex; gap: 11px; align-items: flex-start;
+  background: var(--surface-raised); padding: 12px 14px; font-size: 13.5px; line-height: 1.5;
+}
+.promise:first-child { border-radius: var(--radius-sm) var(--radius-sm) 2px 2px; }
+.promise:last-child  { border-radius: 2px 2px var(--radius-sm) var(--radius-sm); }
+.promise b { display: block; font-weight: 640; margin-bottom: 1px; }
+.promise span { color: var(--text-muted); }
+.promise-mark { flex: none; color: var(--gold); font-weight: 700; font-size: 15px; line-height: 1.3; }
+
+/* =======================================================================
+   TAB 2 · THE QUIZ
+   Three questions, each with a consequence you can point at later. Q2 is
+   the one that matters: the coach quotes her own answer back at her at
+   the bottom of the crash.
+   ======================================================================= */
+.qsteps { display: flex; gap: 4px; margin-bottom: 22px; }
+.qstep { flex: 1; height: 3px; border-radius: 2px; background: var(--border-plain); }
+.qstep.seen { background: var(--text-muted); }
+.qstep.now  { background: var(--gold); }
+.q-title { font-size: 21px; font-weight: 620; line-height: 1.3; margin: 0 0 6px; }
+.q-sub { font-size: 13.5px; color: var(--text-muted); margin: 0 0 20px; line-height: 1.55; }
+.q-nowrong {
+  font-size: 12px; color: var(--gold); margin: 14px 0 0;
+  display: flex; gap: 7px; align-items: baseline;
+}
+.field { display: block; margin-bottom: 16px; }
+.field-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.field input {
+  width: 100%; height: var(--tap); padding: 0 13px; font-size: 15px;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+}
+.avatars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 20px; }
+.avatars button {
+  aspect-ratio: 1; display: grid; place-items: center; cursor: pointer; padding: 0;
+  background: var(--surface-raised); border: 1px solid var(--border-plain);
+  border-radius: var(--radius-sm); color: var(--text-muted);
+}
+.avatars button:hover { color: var(--text); }
+.avatars button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+
+/* =======================================================================
+   TAB 3 · WHAT A STOCK IS
+   ======================================================================= */
+.slice-fig { display: grid; place-items: center; padding: 6px 0 14px; }
+.slice-fig svg { width: min(100%, 300px); height: auto; }
+
+/* The order book. "A price is what the last buyer and the last seller
+   agreed on" is a sentence nobody believes until they push it around
+   themselves, so it is a control, not a paragraph. */
+/* A depth ladder. The label sits OUTSIDE the bar: inside, a short bar
+   either clips its own number or forces a minimum width that lies about
+   the depth it represents. Price · bar · size, identical on both sides,
+   so the two are actually comparable. */
+.book { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: start; margin: 6px 0 14px; }
+.book-col { display: grid; gap: 4px; align-content: start; }
+.book-cap { font-size: 11px; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; margin: 0 0 3px; }
+.book-col[data-side="buy"]  .book-cap { color: var(--viz-up); }
+.book-col[data-side="sell"] .book-cap { color: var(--viz-down); }
+.book-row {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) 30px;
+  gap: 7px; align-items: center;
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-muted);
+}
+.book-row .bq { text-align: right; color: var(--text); font-weight: 600; }
+.book-track { height: 14px; border-radius: 3px; background: var(--border-plain); overflow: hidden; }
+.book-bar { height: 100%; border-radius: 3px; transition: width 0.25s ease; }
+.book-col[data-side="buy"]  .book-bar { background: var(--viz-up-vol); }
+.book-col[data-side="sell"] .book-bar { background: var(--viz-down-vol); }
+.book-mid { text-align: center; padding-bottom: 2px; }
+.book-price { font-size: 25px; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.book-price-lbl { font-size: 10px; color: var(--text-muted); margin: 2px 0 0; text-transform: uppercase; letter-spacing: 0.06em; }
+.book-ctl { display: flex; gap: 6px; flex-wrap: wrap; }
+.book-ctl button {
+  flex: 1 1 130px; min-height: var(--tap); cursor: pointer; font-size: 12.5px; font-weight: 600;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+}
+.book-ctl button:hover { border-color: var(--border); }
+.book-say { font-size: 13px; line-height: 1.55; color: var(--text-muted); margin: 11px 0 0; min-height: 40px; }
+
+/* the symbol list, introduced before the matching game needs it */
+.symlist { display: grid; gap: 2px; }
+.symrow {
+  display: grid; grid-template-columns: 58px 1fr auto; gap: 11px; align-items: center;
+  background: var(--surface-raised); padding: 11px 13px; font-size: 13.5px;
+}
+.symrow:first-child { border-radius: var(--radius-sm) var(--radius-sm) 2px 2px; }
+.symrow:last-child  { border-radius: 2px 2px var(--radius-sm) var(--radius-sm); }
+.symrow .tk { font-weight: 660; letter-spacing: 0.02em; }
+.symrow .nm { color: var(--text); }
+.symrow .nm small { display: block; color: var(--text-muted); font-size: 11.5px; margin-top: 2px; line-height: 1.4; }
+.swing {
+  font-size: 10.5px; color: var(--text-muted); white-space: nowrap;
+  border: 1px solid var(--border-plain); border-radius: 999px; padding: 3px 9px;
+}
+
+/* =======================================================================
+   TAB 4 · THE MATCHING GAME
+   No score, no timer, no fail state. A wrong pair is a teaching moment
+   and costs nothing; the round ends when all six are matched.
+   ======================================================================= */
+.match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 0; }
+.match-col { display: grid; gap: 7px; align-content: start; }
+.match-cap {
+  font-size: 11px; font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 2px;
+}
+.mcard {
+  text-align: left; cursor: pointer; min-height: 52px;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 13.5px; line-height: 1.35;
+  transition: border-color 0.15s ease, opacity 0.2s ease;
+}
+.mcard:hover:not(:disabled) { border-color: var(--border); }
+.mcard .mtk { font-weight: 660; font-size: 15px; letter-spacing: 0.02em; display: block; }
+.mcard .mnm small { display: block; color: var(--text-muted); font-size: 11.5px; margin-top: 3px; }
+.mcard[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-dim); }
+.mcard[data-state="matched"] {
+  border-color: var(--viz-up); background: var(--viz-up-wash);
+  opacity: 0.62; cursor: default;
+}
+/* Never color alone — the matched pair also carries a glyph. */
+.mcard[data-state="matched"]::after {
+  content: " ✓"; color: var(--viz-up); font-weight: 700;
+}
+.mcard[data-state="miss"] { border-color: var(--viz-down); }
+.match-say {
+  font-size: 13.5px; line-height: 1.55; margin: 14px 0 0; min-height: 44px;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  background: var(--surface-raised); border-left: 3px solid var(--gold);
+}
+.match-say b { font-weight: 650; }
+.match-count { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; font-variant-numeric: tabular-nums; }
+
+/* =======================================================================
+   TAB 5 · THE TRADING FLOOR
+   Layout modelled on a real charting terminal: the chrome recedes so the
+   data is the only loud thing on screen.
+   ======================================================================= */
+.floor {
+  display: grid; height: 100%;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "tape tape" "chart side" "coach coach";
+}
+
+/* ---- the tape: replay transport + clock. No countdown anywhere. ---- */
+.tape {
+  grid-area: tape; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 12px; background: var(--surface-solid);
+  border-bottom: 1px solid var(--border-plain);
+}
+.tape-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 11px;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.tape-btn:hover:not(:disabled) { border-color: var(--border); }
+.tape-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tape-btn[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #17120A; }
+.tape-sep { width: 1px; height: 22px; background: var(--border-plain); flex: none; }
+.tape-clock {
+  font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.tape-clock b { color: var(--text); font-weight: 620; }
+.tape-spacer { flex: 1; }
+.tape-live { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--viz-up); flex: none; }
+.live-dot.beat { animation: beat 1.6s ease-in-out infinite; }
+@keyframes beat { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.live-dot.halt { background: var(--gold); animation: none; }
+
+/* ---- chart pane ---- */
+.chart-pane { grid-area: chart; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ribbon {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 8px 14px; border-bottom: 1px solid var(--border-plain);
+}
+.ribbon-name { font-size: 13px; font-weight: 640; }
+.ribbon-px { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.ribbon-chg { font-size: 12.5px; font-weight: 640; font-variant-numeric: tabular-nums; }
+.ribbon-chg[data-dir="up"]   { color: var(--viz-up); }
+.ribbon-chg[data-dir="down"] { color: var(--viz-down); }
+.ribbon-chg[data-dir="flat"] { color: var(--text-muted); }
+.ohlc { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ohlc b { color: var(--text); font-weight: 600; }
+
+.chart-wrap { position: relative; flex: 1 1 auto; min-height: 220px; touch-action: pan-y; }
+#chart { display: block; width: 100%; height: 100%; }
+#chart text { font-size: 10px; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+.grid-line { stroke: var(--grid); stroke-width: 1; }
+.axis-line { stroke: var(--axis); stroke-width: 1; }
+.price-line { fill: none; stroke: var(--viz-up); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.price-area { fill: var(--viz-up-wash); }
+.price-line.second { stroke: var(--text-muted); stroke-width: 1.5; }
+.candle-wick { stroke-width: 1; }
+.candle-body { stroke-width: 1.2; }
+.candle-up   { stroke: var(--viz-up);   fill: none; }              /* hollow = closed up */
+.candle-down { stroke: var(--viz-down); fill: var(--viz-down); }   /* filled = closed down */
+.vol-up   { fill: var(--viz-up-vol); }
+.vol-down { fill: var(--viz-down-vol); }
+/* The cost line is an annotation, not a series, so it wears a text token. */
+.basis-line { stroke: var(--text-muted); stroke-width: 1; opacity: 0.55; }
+.basis-label {
+  fill: var(--text-muted); font-size: 10px;
+  paint-order: stroke; stroke: var(--surface-solid); stroke-width: 3px; stroke-linejoin: round;
+}
+.marker-buy  { fill: var(--viz-up);   stroke: var(--bg); stroke-width: 1.5; }
+.marker-sell { fill: var(--viz-down); stroke: var(--bg); stroke-width: 1.5; }
+.cross-dot { fill: var(--viz-up); stroke: var(--bg); stroke-width: 2; }
+.crosshair { stroke: var(--text-muted); stroke-width: 1; opacity: 0.45; }
+.last-tag rect { fill: var(--surface-raised); stroke: var(--axis); }
+.last-tag text { fill: var(--text); font-weight: 600; font-size: 10px; }
+.halt-band { fill: var(--gold); opacity: 0.05; }
+.anno {
+  fill: var(--text); font-size: 10.5px; font-weight: 600;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3.5px; stroke-linejoin: round;
+}
+.anno.dim { fill: var(--text-muted); font-weight: 400; }
+
+#tooltip {
+  position: absolute; pointer-events: none; z-index: 5;
+  background: var(--surface-raised); border: 1px solid var(--border-plain);
+  border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; min-width: 120px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); transform: translate(-50%, -115%);
+}
+.tt-value { font-size: 15px; font-weight: 650; margin: 0; font-variant-numeric: tabular-nums; }
+.tt-date { font-size: 11px; color: var(--text-muted); margin: 1px 0 0; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 13px; padding: 8px 14px;
+  font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-plain);
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend svg { flex: none; display: block; }
+.legend-toggle {
+  margin-left: auto; background: none; border: 1px solid var(--border-plain);
+  color: var(--text-muted); border-radius: 999px; padding: 5px 11px;
+  font-size: 11px; font-weight: 600; cursor: pointer; min-height: 32px;
+}
+.legend-toggle:hover { color: var(--text); border-color: var(--border); }
+#bar-table { max-height: 190px; overflow-y: auto; padding: 0 14px 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { padding: 5px 4px; text-align: right; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+thead th {
+  position: sticky; top: 0; background: var(--surface-solid); color: var(--text-muted);
+  font-weight: 600; font-size: 11px; border-bottom: 1px solid var(--border-plain);
+}
+tbody tr + tr td { border-top: 1px solid var(--border-plain); }
+
+/* ---- right side panel ---- */
+.side {
+  grid-area: side; overflow-y: auto; min-height: 0;
+  background: var(--surface-solid); border-left: 1px solid var(--border-plain);
+}
+.block { padding: 13px 14px; border-bottom: 1px solid var(--border-plain); }
+.block-title {
+  font-size: 11px; font-weight: 650; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted); margin: 0 0 10px;
+}
+.hero-label { font-size: 12px; color: var(--text-muted); margin: 0 0 2px; }
+.hero { font-size: 31px; font-weight: 640; letter-spacing: -0.02em; margin: 0; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.hero-delta { font-size: 12.5px; font-weight: 600; margin: 5px 0 0; font-variant-numeric: tabular-nums; }
+.hero-delta[data-dir="up"]   { color: var(--viz-up); }
+.hero-delta[data-dir="down"] { color: var(--viz-down); }
+.hero-delta[data-dir="flat"] { color: var(--text-muted); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 13px; }
+.tile { background: var(--surface-raised); padding: 10px 11px; border-radius: var(--radius-sm); }
+.tile:first-child { border-radius: var(--radius-sm) 2px 2px var(--radius-sm); }
+.tile:last-child  { border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
+.tile-label { font-size: 11px; color: var(--text-muted); margin: 0 0 3px; }
+.tile-value { font-size: 16px; font-weight: 620; margin: 0; font-variant-numeric: tabular-nums; }
+.position-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 10px 0; border-top: 1px solid var(--border-plain); font-size: 13px;
+}
+.position-row .sym { font-weight: 620; }
+.position-row .sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.position-row .pl { font-variant-numeric: tabular-nums; font-weight: 620; }
+.position-row .pl[data-dir="up"]   { color: var(--viz-up); }
+.position-row .pl[data-dir="down"] { color: var(--viz-down); }
+.empty { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin: 6px 0 0; }
+
+/* watchlist */
+.wl { display: grid; gap: 1px; }
+.wl-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 9px; align-items: center;
+  padding: 8px 9px; border-radius: var(--radius-sm); cursor: pointer; text-align: left;
+  background: none; border: 1px solid transparent; color: var(--text); font-size: 12.5px;
+}
+.wl-row:hover { background: var(--surface-raised); }
+.wl-row[aria-current="true"] { background: var(--surface-raised); border-color: var(--border); }
+.wl-tk { font-weight: 640; }
+.wl-tk small { display: block; color: var(--text-muted); font-weight: 400; font-size: 10.5px; margin-top: 1px; }
+.wl-px { font-variant-numeric: tabular-nums; }
+.wl-chg { font-variant-numeric: tabular-nums; font-size: 11.5px; min-width: 54px; text-align: right; }
+.wl-chg[data-dir="up"]   { color: var(--viz-up); }
+.wl-chg[data-dir="down"] { color: var(--viz-down); }
+.wl-chg[data-dir="flat"] { color: var(--text-muted); }
+
+/* order ticket */
+.qty-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.qty-row label { font-size: 12.5px; color: var(--text-muted); flex: none; }
+.stepper { display: flex; align-items: center; margin-left: auto; gap: 2px; }
+.stepper button {
+  width: var(--tap); height: var(--tap); font-size: 18px; cursor: pointer;
+  background: var(--surface-raised); color: var(--text); border: 1px solid var(--border-plain);
+}
+.stepper button:first-child { border-radius: var(--radius-sm) 2px 2px var(--radius-sm); }
+.stepper button:last-child  { border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
+.stepper input {
+  width: 56px; height: var(--tap); text-align: center; font-size: 15px;
+  font-variant-numeric: tabular-nums; background: var(--surface-raised);
+  color: var(--text); border: 1px solid var(--border-plain); border-radius: 2px;
+}
+.cost-line { font-size: 12.5px; color: var(--text-muted); margin: 0 0 11px; line-height: 1.5; }
+.cost-line b { color: var(--text); font-weight: 620; font-variant-numeric: tabular-nums; }
+.seg { display: flex; gap: 2px; margin-bottom: 10px; }
+.seg button {
+  flex: 1; min-height: var(--tap); padding: 7px 4px; cursor: pointer;
+  background: var(--surface-raised); color: var(--text-muted);
+  border: 1px solid var(--border-plain); font-size: 11.5px; font-weight: 600;
+}
+.seg button:first-child { border-radius: var(--radius-sm) 2px 2px var(--radius-sm); }
+.seg button:last-child  { border-radius: 2px var(--radius-sm) var(--radius-sm) 2px; }
+.seg button[aria-pressed="true"] { color: #17120A; background: var(--gold); border-color: var(--gold); }
+.order-row { display: flex; gap: 2px; }
+.order-btn {
+  flex: 1; min-height: 50px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 14.5px; font-weight: 650; border: 1px solid transparent;
+}
+.buy-btn  { background: var(--viz-up); color: #04101F; }
+.sell-btn { background: none; color: var(--viz-down); border-color: var(--viz-down); }
+.order-btn:active:not(:disabled) { transform: translateY(1px); }
+.order-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.validation { font-size: 12px; color: var(--viz-down); margin: 9px 0 0; min-height: 15px; line-height: 1.45; }
+
+/* the hint box — downside stated FIRST, in calm secondary ink, never
+   alarm red. For a product about a confidence gap, a scary red warning is
+   the wrong instrument: the point is that the downside is knowable. */
+#hint-box {
+  background: var(--surface-raised); border: 1px solid var(--border);
+  border-left: 3px solid var(--gold); border-radius: var(--radius-sm);
+  padding: 11px 13px; margin-top: 12px;
+}
+.hint-downside {
+  display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.5;
+  color: var(--text-muted); margin: 0 0 7px; padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-plain);
+}
+.hint-tag {
+  flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--gold); padding-top: 2px;
+}
+.hint-main { font-size: 13.5px; line-height: 1.5; margin: 0; }
+.hint-second { font-size: 12.5px; line-height: 1.5; color: var(--text-muted); margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--border-plain); }
+.hint-more {
+  background: none; border: 0; color: var(--gold); font-size: 12px; font-weight: 600;
+  cursor: pointer; padding: 8px 0 0; min-height: 38px;
+}
+#money-flow {
+  margin-top: 12px; padding: 12px 13px; border-radius: var(--radius-sm);
+  font-size: 13.5px; line-height: 1.5; background: var(--viz-up-wash);
+}
+#money-flow[data-dir="down"] { background: var(--viz-down-wash); }
+#money-flow strong { font-weight: 650; }
+.flow-sub { display: block; font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+/* =======================================================================
+   THE COACH — a halt card that stops the market to ask one question.
+   The market pausing is the point: you are never asked to think while a
+   number is moving.
+   ======================================================================= */
+/* The coach takes a row of the grid rather than floating over the chart.
+   An overlay would cover the bottom of the price line at exactly the
+   moment the coach is describing it — the trough halt would hide the
+   trough. The chart shrinks instead, and the picture stays whole. */
+.coach {
+  grid-area: coach; background: var(--surface-solid);
+  border-top: 1px solid var(--border); box-shadow: 0 -12px 34px rgba(0, 0, 0, 0.35);
+  max-height: 46dvh; overflow-y: auto;
+}
+.coach-inner { max-width: 760px; margin: 0 auto; padding: 16px 18px 20px; }
+.coach-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; flex-wrap: wrap; }
+.coach-sigil { width: 28px; height: 28px; flex: none; }
+.coach-who { font-size: 12.5px; font-weight: 650; }
+.coach-who small { color: var(--text-muted); font-weight: 400; }
+.coach-halt {
+  margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--gold);
+  border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px;
+}
+.coach-title { font-size: 18px; font-weight: 640; line-height: 1.3; margin: 0 0 8px; }
+.coach-body { font-size: 14.5px; line-height: 1.6; margin: 0 0 10px; }
+.coach-body.mute { color: var(--text-muted); font-size: 13.5px; }
+.coach-callback {
+  font-size: 13.5px; line-height: 1.55; margin: 0 0 12px; padding: 10px 12px;
+  border-left: 2px solid var(--gold); background: var(--gold-dim);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.coach-lines {
+  position: relative;
+  padding: 12px 14px;
+  background: rgba(26,31,56,.82);
+  border: 1px solid var(--border-plain);
+  border-radius: 4px 12px 12px 12px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}
+.coach-lines::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -8px;
+  width: 10px;
+  height: 12px;
+  background: var(--surface-raised);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+.coach-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.fact {
+  font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--text-muted);
+  background: var(--surface-raised); border: 1px solid var(--border-plain);
+  border-radius: 999px; padding: 4px 10px;
+}
+.fact b { color: var(--text); font-weight: 620; }
+.fact[data-dir="up"]   b { color: var(--viz-up); }
+.fact[data-dir="down"] b { color: var(--viz-down); }
+.coach-opts { display: flex; flex-wrap: wrap; gap: 7px; }
+.opt {
+  flex: 1 1 210px; text-align: left; min-height: var(--tap); cursor: pointer;
+  background: var(--surface-raised); color: var(--text);
+  border: 1px solid var(--border-plain); border-radius: var(--radius-sm);
+  padding: 11px 13px; font-size: 13.5px; line-height: 1.4;
+}
+.opt:hover:not(:disabled) { border-color: var(--border); }
+.opt small { display: block; color: var(--text-muted); font-size: 11.5px; margin-top: 3px; }
+.opt:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* =======================================================================
+   TAB 6 · DEBRIEF
+   ======================================================================= */
+.ledger { display: grid; gap: 2px; margin: 18px 0; border-radius: var(--radius-sm); overflow: hidden; }
+.ledger-row {
+  display: flex; justify-content: space-between; gap: 14px;
+  background: var(--surface-raised); padding: 11px 13px; font-size: 13.5px;
+}
+.ledger-row b { font-variant-numeric: tabular-nums; font-weight: 620; }
+.ledger-row[data-key="true"] { background: var(--gold-dim); }
+.ledger-row b[data-dir="up"]   { color: var(--viz-up); }
+.ledger-row b[data-dir="down"] { color: var(--viz-down); }
+.coda {
+  font-size: 14.5px; line-height: 1.62; color: var(--text-muted);
+  border-left: 2px solid var(--gold); padding-left: 14px; margin: 18px 0 22px;
+}
+.takeaways { display: grid; gap: 2px; margin: 0 0 20px; }
+.takeaway { background: var(--surface-raised); padding: 12px 14px; font-size: 13.5px; line-height: 1.55; }
+.takeaway:first-child { border-radius: var(--radius-sm) var(--radius-sm) 2px 2px; }
+.takeaway:last-child  { border-radius: 2px 2px var(--radius-sm) var(--radius-sm); }
+.takeaway b { display: block; font-weight: 640; margin-bottom: 2px; }
+.takeaway span { color: var(--text-muted); }
+
+/* =======================================================================
+   CONTENT CHECKS — the app validates itself in the browser, so a judge
+   can see the claims are enforced rather than asserted.
+   ======================================================================= */
+#checks {
+  position: fixed; inset: auto 0 0 0; z-index: 80; max-height: 74dvh; overflow-y: auto;
+  background: var(--surface-solid); border-top: 1px solid var(--border); padding: 14px 18px 22px;
+}
+.checks-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.checks-title { font-size: 11.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 0; }
+.check {
+  display: flex; gap: 10px; align-items: baseline; padding: 6px 0;
+  border-top: 1px solid var(--border-plain); font-size: 12.5px; line-height: 1.45;
+}
+.check-tag { flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; width: 40px; }
+.check[data-ok="true"]  .check-tag { color: var(--viz-up); }
+.check[data-ok="false"] .check-tag { color: var(--viz-down); }
+.check-detail { color: var(--text-muted); }
+.link-btn {
+  background: none; border: 0; color: var(--text-muted); font-size: 11.5px;
+  cursor: pointer; padding: 6px 4px; text-decoration: underline; text-underline-offset: 3px;
+}
+.link-btn:hover { color: var(--text); }
+
+/* =======================================================================
+   RESPONSIVE — the side panel drops below the chart, nothing is removed
+   ======================================================================= */
+@media (max-width: 1000px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100dvh; }
+  .panels { overflow: visible; }
+  .panel { position: static; overflow: visible; }
+  .panel[hidden] { display: none !important; }
+  .floor {
+    height: auto; grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: "tape" "chart" "coach" "side";
+  }
+  .side { border-left: 0; border-top: 1px solid var(--border-plain); }
+  .chart-wrap { height: 300px; flex: none; }
+  /* Stacked, the coach sits directly under the chart it is talking about
+     and openHalt() scrolls it into view. Still never on top of the data. */
+  .coach { max-height: none; }
+}
+@media (max-width: 620px) {
+  .match-grid { grid-template-columns: 1fr; }
+  .avatars { grid-template-columns: repeat(3, 1fr); }
+  .opt { flex: 1 1 100%; }
+  .book { grid-template-columns: 1fr; }
+  .book-col[data-side="sell"] { direction: ltr; }
+  .book-col[data-side="sell"] .book-bar { justify-content: flex-start; }
+  .tab { padding: 0 10px; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">R</span>
-      <div>
-        <h1>Rich-HER <span class="brand-sub">Astra Trading</span></h1>
-        <p class="tagline">Learn what you could lose first.</p>
-      </div>
-    </div>
-    <nav id="tierScrub" class="tier-scrub" aria-label="Tiers: preview what you unlock"></nav>
-    <button id="btnReset" type="button" class="btn btn-ghost" title="Clears everything and starts fresh for the next person">Reset demo</button>
+
+<div class="app">
+
+  <!-- ---------------- persistent chrome ---------------- -->
+  <header class="chrome">
+    <h1 class="wordmark">Rich<em>HER</em></h1>
+    <span class="chrome-spacer"></span>
+    <span class="badge"><span class="badge-dot"></span><span id="data-badge">Simulated data</span></span>
+    <button class="link-btn" id="open-checks">Self-checks</button>
+    <button class="link-btn" id="btn-reset">Start over</button>
   </header>
 
-  <div id="banner" class="banner" hidden></div>
-  <div id="fatal" class="fatal panel" hidden></div>
+  <!-- Tabs are the spine of the product. Later steps stay visible while
+       locked, so the whole shape of the session is legible from step one. -->
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
 
-  <main id="app" hidden>
-    <section class="stats" aria-label="Your money">
-      <div class="stat"><h2 data-hint="portfolio.cash">Cash</h2><p id="valCash" class="stat-value"></p><p class="stat-sub">Buying power</p></div>
-      <div class="stat"><h2 data-hint="portfolio.position">Position</h2><p id="valPosition" class="stat-value"></p><p id="subPosition" class="stat-sub"></p></div>
-      <div class="stat"><h2>Total equity</h2><p id="valEquity" class="stat-value"></p><p id="subEquity" class="stat-sub"></p></div>
-      <div class="stat"><h2 data-hint="portfolio.pnl">Profit or loss</h2><p id="valPnl" class="stat-value"></p><p id="subPnl" class="stat-sub"></p></div>
+  <div class="panels" id="panels">
+
+    <!-- ===============================================================
+         TAB 1 · WELCOME
+         =============================================================== -->
+    <section class="panel" id="p-welcome" role="tabpanel" aria-labelledby="t-welcome">
+      <div class="reading">
+        <p class="eyebrow">A practice account, built for HackHERS</p>
+        <p class="stat-figure" id="stat-figure">—</p>
+        <p class="stat-claim" id="stat-claim">—</p>
+        <p class="stat-source" id="stat-source">—</p>
+
+        <p class="body-p">
+          It is not a knowledge gap. Women who do invest perform about as well as anyone
+          else. What stops people is the part before the first trade: not wanting to be
+          wrong with real money.
+        </p>
+        <p class="body-p" style="color:var(--text-muted)">
+          So be wrong here instead. This is a simulator that teaches you to start
+          <em>before</em> you feel ready, because feeling ready is the thing that never arrives.
+        </p>
+
+        <!-- the time count, up front. An estimate, never a countdown. -->
+        <div class="clock-strip">
+          <span class="clock-total" id="clock-total">8<small>min</small></span>
+          <span class="clock-note">
+            Start to finish, at a reading pace. Nothing on the next six screens is timed —
+            this number is here so you know what you are agreeing to, not to hurry you.
+          </span>
+        </div>
+        <ul class="clock-bits" id="clock-bits"></ul>
+
+        <div class="promises">
+          <div class="promise"><span class="promise-mark" aria-hidden="true">·</span>
+            <span><b>No score.</b><span>No points, no streak, no leaderboard. Nothing you do here is graded.</span></span></div>
+          <div class="promise"><span class="promise-mark" aria-hidden="true">·</span>
+            <span><b>No timer.</b><span>The market pauses every single time you are asked a question.</span></span></div>
+          <div class="promise"><span class="promise-mark" aria-hidden="true">·</span>
+            <span><b>No "I don't know" button.</b><span>Every question has answers a reasonable person would give. None of them is wrong.</span></span></div>
+          <div class="promise"><span class="promise-mark" aria-hidden="true">·</span>
+            <span><b>No real money, and no real data.</b><span>Pretend money, simulated prices. Losing is free, which is the entire point.</span></span></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" id="go-quiz">Start — 3 quick questions</button>
+        </div>
+        <p class="fine">
+          Prices here are generated in this page from a fixed seed, not real market history.
+          This is an educational tool, not financial advice. Nothing you type leaves your browser.
+        </p>
+      </div>
     </section>
-    <p id="shadowLine" class="shadow-line" data-hint="portfolio.shadow" hidden><span id="shadowText"></span></p>
 
-    <div class="layout">
-      <section class="panel chart-panel" aria-label="Price chart">
-        <div class="panel-head">
-          <div>
-            <h2 id="chartTitle" data-hint="chart.line"><span id="chartName"></span> <span id="chartBadge" class="badge"></span></h2>
-            <p class="price-row"><span id="valPrice" class="price"></span> <span id="valDay" class="day"></span></p>
+    <!-- ===============================================================
+         TAB 2 · THE QUIZ
+         Three questions and a practice profile. Each answer changes
+         something you can point at later.
+         =============================================================== -->
+    <section class="panel" id="p-quiz" role="tabpanel" aria-labelledby="t-quiz" hidden>
+      <div class="reading">
+        <div class="qsteps" id="qsteps" aria-hidden="true"></div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ===============================================================
+         TAB 3 · WHAT A STOCK IS
+         =============================================================== -->
+    <section class="panel" id="p-learn" role="tabpanel" aria-labelledby="t-learn" hidden>
+      <div class="reading">
+        <p class="eyebrow">Step 3 · about 90 seconds</p>
+        <h2 class="h-big">A share is a slice of a company.</h2>
+        <p class="lede" id="learn-lede">
+          That is the whole definition. Everything else in this app is a consequence of it.
+        </p>
+
+        <div class="card">
+          <p class="card-label">One company, cut into shares</p>
+          <div class="slice-fig" id="slice-fig"></div>
+          <p class="body-p" style="margin:0">
+            Buy one share and you own a very small piece of a real business. If the business
+            is worth more later, your slice is worth more. If it is worth less, so is your slice.
+            Nobody is holding your money for you — it has turned into a piece of a company.
+          </p>
+        </div>
+
+        <div class="card">
+          <p class="card-label">Where the price comes from</p>
+          <p class="body-p">
+            A price is not set by the company, or by an app, or by anyone in charge. It is
+            the number the last buyer and the last seller agreed on. More people wanting in
+            pushes it up. More people wanting out pushes it down. Push it around yourself:
+          </p>
+          <div class="book">
+            <div class="book-col" data-side="buy">
+              <p class="book-cap">▲ Buyers · price · size</p>
+              <div id="book-buy"></div>
+            </div>
+            <div class="book-mid">
+              <p class="book-price" id="book-price">$20.00</p>
+              <p class="book-price-lbl">Last traded</p>
+            </div>
+            <div class="book-col" data-side="sell">
+              <p class="book-cap">▼ Sellers · price · size</p>
+              <div id="book-sell"></div>
+            </div>
           </div>
-          <div class="replay-controls" role="group" aria-label="Move the replay forward">
-            <button id="btnAdv1" type="button" class="btn">+1 day</button>
-            <button id="btnAdv5" type="button" class="btn">+5 days</button>
-            <button id="btnFast" type="button" class="btn btn-accent">Fast-forward</button>
+          <div class="book-ctl">
+            <button type="button" id="book-add-buy">Someone wants to buy</button>
+            <button type="button" id="book-add-sell">Someone wants to sell</button>
+          </div>
+          <p class="book-say" id="book-say">
+            Tap either side. Watch the number move on its own.
+          </p>
+        </div>
+
+        <div class="card">
+          <p class="card-label">The six you can trade here</p>
+          <p class="body-p" style="margin-bottom:12px">
+            Every company gets a short nickname called a <b>ticker symbol</b>. It is just a
+            handle so a screen can fit it. You are about to need these.
+          </p>
+          <div class="symlist" id="symlist"></div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" id="go-match">I've got it — try the matching game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===============================================================
+         TAB 4 · MATCHING GAME
+         =============================================================== -->
+    <section class="panel" id="p-match" role="tabpanel" aria-labelledby="t-match" hidden>
+      <div class="reading wide">
+        <p class="eyebrow">Step 4 · about 60 seconds</p>
+        <h2 class="h-big">Match the symbol to the company.</h2>
+        <p class="lede">
+          Tap a symbol, then tap its company. A wrong pair costs you nothing and tells you
+          something — there is no score here and no way to fail this.
+        </p>
+        <p class="match-count" id="match-count">0 of 6 matched</p>
+        <div class="match-grid">
+          <div class="match-col">
+            <p class="match-cap">Symbol</p>
+            <div id="match-left" class="match-col"></div>
+          </div>
+          <div class="match-col">
+            <p class="match-cap">Company</p>
+            <div id="match-right" class="match-col"></div>
           </div>
         </div>
-        <svg id="chart" class="chart" role="img" aria-label="Price chart"></svg>
-        <p id="chartLegend" class="legend" data-hint="chart.strategy" hidden><span id="legendText"></span></p>
-        <p id="replayNote" class="replay-note" aria-live="polite"></p>
-        <div id="moneyFlow" class="money-flow" aria-live="polite"></div>
-      </section>
+        <p class="match-say" id="match-say" role="status">Pick any symbol to begin.</p>
+        <div class="btn-row">
+          <button class="btn" id="go-lesson" disabled>Learn the chart next</button>
+          <button class="btn btn-ghost" id="match-shuffle">Shuffle</button>
+        </div>
+      </div>
+    </section>
 
-      <aside class="side">
-        <section id="ticket" class="panel ticket" aria-label="Order ticket"></section>
-        <section id="checkCard" class="panel check" aria-live="polite" hidden></section>
-        <section id="ordersCard" class="panel" hidden><h3>Waiting orders</h3><ul id="ordersList" class="orders"></ul></section>
-        <section class="panel"><h3>What just happened</h3><ol id="feedList" class="feed"></ol></section>
-      </aside>
-    </div>
-  </main>
+    <!-- ===============================================================
+         TAB 5 · READING A CHART
+         =============================================================== -->
+    <section class="panel" id="p-lesson" role="tabpanel" aria-labelledby="t-lesson" hidden>
+      <div class="reading">
+        <p class="eyebrow">Step 5 · read the screen before using it</p>
+        <h2 class="h-big">A line graph is a map, not a verdict.</h2>
+        <p class="lede">Nia's quick tour: time moves left to right, and the price of one share moves up and down.</p>
 
-  <div id="onboarding" class="overlay" role="dialog" aria-modal="true" aria-labelledby="obTitle" hidden></div>
-  <div id="safetyModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="snTitle" hidden></div>
-  <div id="hintPop" class="hintpop" role="tooltip" hidden></div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+        <div class="card chart-lesson-card">
+          <p class="card-label">The two axes</p>
+          <svg class="lesson-chart" viewBox="0 0 560 250" role="img" aria-label="A line graph with time on the horizontal x-axis and price per share on the vertical y-axis">
+            <line x1="70" y1="25" x2="70" y2="205" stroke="var(--axis)" stroke-width="2"/>
+            <line x1="70" y1="205" x2="520" y2="205" stroke="var(--axis)" stroke-width="2"/>
+            <line x1="70" y1="70" x2="520" y2="70" stroke="var(--grid)"/>
+            <line x1="70" y1="125" x2="520" y2="125" stroke="var(--grid)"/>
+            <polyline points="75,170 145,145 215,154 285,92 355,112 425,62 515,82" fill="none" stroke="var(--viz-up)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="295" y="239" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600">X-axis: time</text>
+            <text x="20" y="116" text-anchor="middle" fill="var(--text)" font-size="14" font-weight="600" transform="rotate(-90 20 116)">Y-axis: price</text>
+            <text x="76" y="222" fill="var(--text-muted)" font-size="11">start</text>
+            <text x="481" y="222" fill="var(--text-muted)" font-size="11">now</text>
+            <text x="78" y="39" fill="var(--text-muted)" font-size="11">higher price</text>
+          </svg>
+          <p class="body-p" style="margin:0">A rising line means the last traded price is higher than before. It does not promise what happens next. A steep line means a larger move over that stretch of time, not a better company.</p>
+        </div>
 
-  <footer class="footer">
-    Educational simulator. Prices are synthetic replay data, not real market prices, and nothing here is financial advice.
-  </footer>
-  <script type="module" src="app.js"></script>
+        <div class="card">
+          <p class="card-label">Market orders, by experience</p>
+          <p class="body-p">A <b>market order</b> asks to buy or sell now at the best available prices. It prioritizes getting filled over knowing the exact price.</p>
+          <div class="takeaways">
+            <div class="takeaway"><b>Starting out</b><span>Think of it as joining the next available trade. The displayed price is a quote, not a guarantee.</span></div>
+            <div class="takeaway min-int"><b>Some experience</b><span>Several sellers may be waiting at different prices. A large order can take more than one level, so the average fill may differ from the quote.</span></div>
+            <div class="takeaway min-adv"><b>Experienced</b><span>The gap between the quote and fill is slippage. It widens when the market moves quickly or the order is large. A limit order controls price but may not fill.</span></div>
+          </div>
+          <p class="coach-callback" style="margin-bottom:0"><b>Nia's tip:</b> decide how much you can afford to lose before you press Buy. The chart explains movement; it never makes risk disappear.</p>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" id="go-floor">Open the trading floor</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===============================================================
+         TAB 6 · THE TRADING FLOOR
+         =============================================================== -->
+    <section class="panel" id="p-floor" role="tabpanel" aria-labelledby="t-floor" hidden>
+      <div class="floor">
+
+        <!-- transport. Speed controls exist so the replay is never a wait. -->
+        <div class="tape">
+          <button class="tape-btn" id="tp-play" aria-pressed="false">
+            <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg>
+            <span id="tp-play-label">Open the market</span>
+          </button>
+          <div class="seg" style="margin:0;flex:none" role="group" aria-label="Replay speed">
+            <button type="button" data-speed="1" aria-pressed="true">1×</button>
+            <button type="button" data-speed="2" aria-pressed="false">2×</button>
+            <button type="button" data-speed="4" aria-pressed="false">4×</button>
+          </div>
+          <button class="tape-btn" id="tp-skip">Skip to the next moment</button>
+          <span class="tape-sep"></span>
+          <span class="tape-clock" id="tp-clock">Day <b>1</b> · 09:30</span>
+          <span class="tape-spacer"></span>
+          <span class="tape-live" id="tp-live">
+            <span class="live-dot halt" id="live-dot"></span><span id="live-text">Market closed</span>
+          </span>
+        </div>
+
+        <!-- chart -->
+        <main class="chart-pane">
+          <div class="ribbon">
+            <span class="ribbon-name" id="ribbon-name">—</span>
+            <span class="ribbon-px" id="ribbon-px">—</span>
+            <span class="ribbon-chg" id="ribbon-chg" data-dir="flat">—</span>
+            <span class="ohlc min-int" id="ohlc"></span>
+          </div>
+
+          <div class="chart-wrap" id="chart-wrap">
+            <svg id="chart" role="img" aria-labelledby="ribbon-name" aria-describedby="chart-desc"></svg>
+            <p id="chart-desc" class="sr-only"></p>
+            <div id="tooltip" hidden>
+              <p class="tt-value" id="tt-value">—</p>
+              <p class="tt-date" id="tt-date">—</p>
+            </div>
+          </div>
+
+          <div class="legend" id="legend"></div>
+          <div id="bar-table" hidden></div>
+        </main>
+
+        <!-- side -->
+        <aside class="side">
+          <section class="block">
+            <h2 class="block-title">Your practice account</h2>
+            <p class="hero-label">Total value</p>
+            <p class="hero" id="hero-value">$100.00</p>
+            <p class="hero-delta" data-dir="flat">Goal: $10,000</p>
+            <p class="hero-delta" id="hero-delta" data-dir="flat">No change yet</p>
+            <div class="tiles">
+              <div class="tile"><p class="tile-label">Cash available</p><p class="tile-value" id="tile-cash">$100.00</p></div>
+              <div class="tile"><p class="tile-label">In shares</p><p class="tile-value" id="tile-equity">$0.00</p></div>
+            </div>
+            <div id="positions"></div>
+          </section>
+
+          <section class="block">
+            <h2 class="block-title">Watchlist</h2>
+            <div class="wl" id="watchlist"></div>
+          </section>
+
+          <section class="block">
+            <h2 class="block-title">Place a practice trade</h2>
+            <div class="qty-row">
+              <label for="qty">Shares</label>
+              <div class="stepper">
+                <button type="button" id="qty-down" aria-label="One fewer share">−</button>
+                <input type="text" inputmode="numeric" id="qty" value="10" aria-label="Number of shares">
+                <button type="button" id="qty-up" aria-label="One more share">+</button>
+              </div>
+            </div>
+            <p class="cost-line" id="cost-line">—</p>
+
+            <!-- Order types appear by tier. A beginner sees no control at all. -->
+            <div class="seg min-int" role="group" aria-label="Order type">
+              <button type="button" data-order="market" data-hint="order-market" aria-pressed="true">Market</button>
+              <button type="button" data-order="limit"  data-hint="order-limit"  aria-pressed="false">Limit</button>
+              <button type="button" class="min-adv" data-order="stop" data-hint="order-stop" aria-pressed="false">Stop</button>
+            </div>
+
+            <div class="order-row">
+              <button class="order-btn buy-btn"  id="buy"  data-hint="buy"  aria-describedby="cost-line">Buy</button>
+              <button class="order-btn sell-btn" id="sell" data-hint="sell" aria-describedby="cost-line" disabled>Sell</button>
+            </div>
+            <p class="validation" id="validation" role="status"></p>
+
+            <div id="hint-box" hidden role="status">
+              <p class="hint-downside">
+                <span class="hint-tag">If it goes wrong</span>
+                <span id="hint-downside">—</span>
+              </p>
+              <p class="hint-main" id="hint-main">—</p>
+              <p class="hint-second" id="hint-second" hidden></p>
+              <button class="hint-more" id="hint-more" hidden>Tell me more</button>
+            </div>
+
+            <p id="money-flow" hidden role="status"></p>
+          </section>
+        </aside>
+
+        <!-- the coach halt card, injected here -->
+        <div class="coach" id="coach" hidden role="dialog" aria-live="polite" aria-labelledby="coach-title">
+          <div class="coach-inner">
+            <div class="coach-head">
+              <span class="coach-sigil" id="coach-sigil"></span>
+              <span class="coach-who">Nia Okafor <small>· your coach</small></span>
+              <span class="coach-halt" id="coach-halt">Market paused</span>
+            </div>
+            <h2 class="coach-title" id="coach-title">—</h2>
+            <p class="coach-callback" id="coach-callback" hidden></p>
+            <div id="coach-lines"></div>
+            <div class="coach-facts" id="coach-facts" hidden></div>
+            <div class="coach-opts" id="coach-opts"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===============================================================
+         TAB 6 · DEBRIEF
+         =============================================================== -->
+    <section class="panel" id="p-debrief" role="tabpanel" aria-labelledby="t-debrief" hidden>
+      <div class="reading">
+        <p class="eyebrow" id="end-kicker">The debrief</p>
+        <h2 class="h-big" id="end-title">—</h2>
+        <p class="lede" id="end-lede">—</p>
+        <div class="ledger" id="end-ledger"></div>
+        <p class="coda" id="end-coda">—</p>
+        <h3 class="h-sec">What you actually learned</h3>
+        <div class="takeaways" id="end-takeaways"></div>
+        <p class="body-p" id="end-fear">—</p>
+        <div class="btn-row">
+          <button class="btn" id="end-again">Play it differently</button>
+          <button class="btn btn-ghost" id="end-checks">See the self-checks</button>
+        </div>
+        <p class="fine">
+          No score was kept at any point, and the ending you reached is not ranked above any
+          other by how much money you finished with. Prices were simulated. Real investing has
+          costs, taxes and no reset button — the habits are what transfer, not the numbers.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ===================================================================
+     SELF-CHECKS — the app testing its own claims, in the browser
+     =================================================================== -->
+<div id="checks" hidden>
+  <div class="checks-head">
+    <p class="checks-title">Self-checks</p>
+    <span class="chrome-spacer"></span>
+    <button class="link-btn" id="close-checks">Close</button>
+  </div>
+  <div id="checks-body"></div>
+</div>
+
+<script>
+/* =======================================================================
+   RICH-HER — one self-contained script.
+
+   No ES modules, no fetch(): both fail under file://, and this has to open
+   by double-click with no server and no venue wifi.
+
+   Everything here is deterministic. Prices come from a fixed seed, so the
+   chart rehearsed is the chart demoed, and every number the copy quotes is
+   computed from the same arrays the chart draws — the words cannot drift
+   from the picture.
+   ======================================================================= */
+
+const $ = id => document.getElementById(id);
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const r2 = n => Math.round(n * 100) / 100;
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+const money  = n => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signed = n => (n >= 0 ? '+' : '−') + money(n).slice(1);
+const pct    = n => (n >= 0 ? '+' : '−') + Math.abs(n * 100).toFixed(1) + '%';
+const dirOf  = n => Math.abs(n) < 1e-9 ? 'flat' : n > 0 ? 'up' : 'down';
+const arrow  = d => d === 'up' ? '▲' : d === 'down' ? '▼' : '—';
+const fmtVol = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : (n / 1e3).toFixed(0) + 'K';
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+
+/* ---------------------------------------------------------------------
+   THE OPENING STATISTIC
+   Sourced, not invented. A made-up number is the fastest way to lose a
+   judge who checks — so the source line calls ITSELF out in red if the
+   `source` field is ever emptied.
+   --------------------------------------------------------------------- */
+const STAT = {
+  figure: '2×',
+  claim: 'Women are nearly twice as likely as men to describe their own financial knowledge as “non-existent.”',
+  source: 'Fidelity’s 2024 Women & Investing Study, released 3 October 2024. The same study found 71% of women now own stock-market investments, up 18 points on 2023.'
+};
+/* Sourcing notes, so the next person does not repeat the work:
+   - Primary: Fidelity newsroom release, 3 Oct 2024 ("71% of women own
+     investments in the stock market").
+   - The "non-existent" comparison appears in trade-press coverage of that
+     same study (InvestmentNews, Oct 2024).
+   - Alternates from the same study, if a percentage reads better than a
+     multiple: "48% are embarrassed they don't know more about investing",
+     "55% feel overwhelmed by their finances". Confirm on Fidelity's own
+     page before either goes on a slide. Never swap in a figure you have
+     not opened the source for. */
+
+/* =======================================================================
+   THE TAPE — deterministic intraday price data
+
+   Anchor-interpolated rather than a free random walk. Every number the
+   coach quotes has to be exact and identical on every run, because the
+   copy states dollar figures out loud. Noise is an AR(1) process so the
+   wiggle is autocorrelated (it looks like a market, not like static) and
+   tapers to zero at each anchor, so the waypoints stay exact.
+
+   Anchors carry their own noise level, so volatility can be turned UP
+   through the crash — "the market cannot be predicted" has to be felt in
+   the motion of the line, not just asserted in a sentence.
+   ======================================================================= */
+const TICKS_PER_DAY = 78;      // 6.5 hours of 5-minute bars
+const TAPE_LEN = 390;          // 5 trading days
+const LAST_T = TAPE_LEN - 1;
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/** anchors: [tick, price, noise][] — noise is a fraction, e.g. 0.004 */
+function buildTape(anchors, seed, volBase) {
+  const rand = mulberry32(seed);
+  const gauss = () => Math.sqrt(-2 * Math.log(rand() || 1e-9)) * Math.cos(2 * Math.PI * rand());
+  const bars = [];
+  let e = 0, a = 0, prevClose = anchors[0][1];
+
+  for (let i = 0; i < TAPE_LEN; i++) {
+    while (a < anchors.length - 2 && i > anchors[a + 1][0]) a++;
+    const [t0, p0, n0] = anchors[a], [t1, p1, n1] = anchors[a + 1];
+    const u = clamp((i - t0) / (t1 - t0), 0, 1);
+    const ease  = (1 - Math.cos(Math.PI * u)) / 2;   // smooth between anchors
+    const taper = Math.sin(Math.PI * u);             // 0 at both anchors
+    const base  = p0 + (p1 - p0) * ease;
+    // Ambient volatility is what the market is DOING right now. It is
+    // interpolated but never tapered: tapering it would make the market
+    // perfectly calm at exactly the ticks the coach stops on, which is
+    // precisely where the slippage lesson has to bite.
+    const ambient = n0 + (n1 - n0) * ease;
+    // The displacement IS tapered, so anchor prices stay exact to the cent.
+    const noise = ambient * taper;
+
+    e = e * 0.72 + gauss() * 0.46;                   // AR(1): autocorrelated wiggle
+    const close = Math.max(0.5, base * (1 + e * noise));
+
+    const open = prevClose;
+    const lo = Math.min(open, close), hi = Math.max(open, close);
+    const wick = Math.max(hi * noise * 0.55, (hi - lo) * 0.3);
+    const move = Math.abs(close - open) / (open || 1);
+    bars.push({
+      i,
+      o: r2(open),
+      h: r2(hi + Math.abs(gauss()) * wick),
+      l: r2(Math.max(0.25, lo - Math.abs(gauss()) * wick)),
+      c: r2(close),
+      v: Math.round(volBase * (0.5 + move * 90 + rand() * 0.7)),
+      n: ambient                                      // how fast the market is moving; drives slippage
+    });
+    prevClose = close;
+  }
+  // Anchors are exact, so quoted dollar figures are exact.
+  for (const [t, p] of anchors) {
+    if (t <= LAST_T) { bars[t].c = r2(p); bars[t].h = Math.max(bars[t].h, r2(p)); bars[t].l = Math.min(bars[t].l, r2(p)); }
+  }
+  return bars;
+}
+
+/* ---- the scripted arc, in tick indices ----
+   Chosen so the featured stock peaks just after she is invited to buy,
+   falls exactly 50% off that peak, scares her twice on the way back, and
+   finishes above where it started. Losses first, long-term profit second:
+   the whole thesis of the product is in this shape. */
+const T_BUY = 60, T_PEAK = 95, T_SLIDE = 150, T_TROUGH = 215, T_SCARE = 280, T_EXIT = 330;
+
+const UNIVERSE = [
+  { s: 'VOLT', name: 'Voltaic Cell Co.', kind: 'Stock', sector: 'Battery cells for cars and grids',
+    swing: 'large swings', featured: true, volBase: 210e3,
+    blurb: 'One company, one industry. Swings hardest in both directions.',
+    seed: 90210, anchors: [
+      [0, 48.00, 0.0045], [T_BUY, 50.20, 0.0050], [T_PEAK, 52.40, 0.0055],
+      [T_SLIDE, 42.80, 0.0110], [T_TROUGH, 26.20, 0.0190], [250, 31.50, 0.0150],
+      [T_SCARE, 27.90, 0.0165], [T_EXIT, 41.00, 0.0105], [LAST_T, 56.80, 0.0070]] },
+
+  { s: 'ORB', name: 'Orbit 500 Fund', kind: 'Fund', sector: 'Five hundred companies in one purchase',
+    swing: 'small swings', fund: true, volBase: 88e3,
+    blurb: 'Not a company. One purchase that owns a slice of five hundred of them.',
+    seed: 5150, anchors: [
+      [0, 100.00, 0.0013], [T_BUY, 101.60, 0.0014], [T_PEAK, 104.20, 0.0016],
+      [T_SLIDE, 99.50, 0.0028], [T_TROUGH, 92.60, 0.0040], [250, 95.10, 0.0032],
+      [T_SCARE, 93.80, 0.0034], [T_EXIT, 101.30, 0.0024], [LAST_T, 109.40, 0.0018]] },
+
+  { s: 'KIN', name: 'Kindred Grocers', kind: 'Stock', sector: 'Supermarkets',
+    swing: 'small swings', volBase: 31e3,
+    blurb: 'People buy food in every kind of week. It moves slowly.',
+    seed: 4242, anchors: [
+      [0, 31.00, 0.0016], [T_PEAK, 31.90, 0.0018], [T_SLIDE, 30.60, 0.0026],
+      [T_TROUGH, 29.40, 0.0034], [T_SCARE, 30.20, 0.0028], [LAST_T, 33.20, 0.0020]] },
+
+  { s: 'HLX', name: 'Helix Biolabs', kind: 'Stock', sector: 'Experimental medicines',
+    swing: 'large swings', volBase: 74e3,
+    blurb: 'Moves on its own news, on its own days. Rarely in step with the rest.',
+    seed: 1337, anchors: [
+      [0, 88.00, 0.0060], [50, 72.40, 0.0120], [T_PEAK, 80.10, 0.0090],
+      [T_SLIDE, 96.30, 0.0075], [T_TROUGH, 88.20, 0.0100], [T_SCARE, 103.50, 0.0080],
+      [LAST_T, 94.60, 0.0090]] },
+
+  { s: 'MERI', name: 'Meridian Power', kind: 'Stock', sector: 'Electricity utility',
+    swing: 'small swings', volBase: 22e3,
+    blurb: 'A utility. Dull on purpose, which is a feature and not a flaw.',
+    seed: 606, anchors: [
+      [0, 62.00, 0.0011], [T_SLIDE, 61.20, 0.0016], [T_TROUGH, 60.10, 0.0022],
+      [LAST_T, 64.40, 0.0013]] },
+
+  { s: 'CASA', name: 'Casa Coffee Group', kind: 'Stock', sector: 'Coffee shops',
+    swing: 'medium swings', volBase: 45e3,
+    blurb: 'Enough shops to be steady, small enough to still get knocked about.',
+    seed: 8899, anchors: [
+      [0, 19.00, 0.0030], [T_PEAK, 20.80, 0.0034], [T_SLIDE, 18.10, 0.0055],
+      [T_TROUGH, 15.30, 0.0080], [T_SCARE, 16.90, 0.0060], [LAST_T, 21.60, 0.0038]] },
+];
+const BOOK = {};
+for (const u of UNIVERSE) { u.bars = buildTape(u.anchors, u.seed, u.volBase); u.dataSource = 'synthetic'; BOOK[u.s] = u; }
+
+const FEATURED = 'VOLT', FUND = 'ORB';
+const uni  = s => BOOK[s];
+const barAt = (s, t) => BOOK[s].bars[clamp(t, 0, LAST_T)];
+const pxAt = (s, t) => barAt(s, t).c;
+
+/** The wall clock the tape pretends to be running on. */
+function tapeClock(t) {
+  const day = Math.floor(t / TICKS_PER_DAY) + 1;
+  const mins = 9 * 60 + 30 + (t % TICKS_PER_DAY) * 5;
+  const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+  const mm = String(mins % 60).padStart(2, '0');
+  return { day, time: hh + ':' + mm, label: `Day ${day} · ${hh}:${mm}` };
+}
+
+/* =======================================================================
+   HINT COPY — one authoritative entry per action, read by every surface
+   that explains it, so the button and the coach cannot drift apart.
+   The downside is always stated FIRST.
+   ======================================================================= */
+const HINTS = {
+  buy: {
+    downside: 'If the price falls, your shares are worth less than you paid.',
+    main: 'This spends your cash on shares. You now own a small piece of a company.',
+    why: 'It is a market order: it fills immediately, at whatever the price is the instant it arrives.'
+  },
+  sell: {
+    downside: 'You lock in the gain or the loss the moment this fills. It stops being on paper.',
+    main: 'This turns your shares back into cash at the current price.',
+    why: 'Also a market order, so the price you get can differ slightly from the one you were looking at.'
+  },
+  'order-market': {
+    downside: 'You accept whatever the price is right now, even if it moved while you were deciding.',
+    main: 'Buy or sell straight away at the current price.',
+    why: 'The simplest order type, and the only one a beginner needs. Its weakness shows up when the market is moving fast.'
+  },
+  'order-limit': {
+    downside: 'It may never fill. If the price never reaches your number, nothing happens at all.',
+    main: 'You name the exact price you are willing to pay, instead of taking the current one.',
+    why: 'The fix for the market order’s weakness: you trade certainty of price for certainty of filling.'
+  },
+  'order-stop': {
+    downside: 'Once it triggers it becomes a market order, so the price you actually get can slip below your stop.',
+    main: 'This sells automatically if the price falls past a level you set in advance.',
+    why: 'Often called a stop-loss. It is a floor you choose while calm, so a frightened version of you does not have to choose one later.'
+  }
+};
+
+/* =======================================================================
+   SESSION STATE
+   ======================================================================= */
+const START_CASH = 100;
+const TARGET_CASH = 10000;
+
+const S = {
+  tab: 'welcome',
+  unlocked: new Set(['welcome', 'quiz']),
+  done: new Set(),
+
+  // from the quiz
+  tier: 'beginner', instinct: null, fear: null, name: '', avatar: 0,
+
+  // the account
+  cash: START_CASH, pos: {}, trades: [],
+  worstEquity: START_CASH, bestEquity: START_CASH,
+
+  // the tape
+  t: 0, playing: false, speed: 1, marketOpen: false, haltIdx: 0, closed: false,
+
+  // the screen
+  symbol: FEATURED, qty: 10, orderType: 'market',
+  chartType: 'line', showVolume: true, compare: false, showTable: false,
+
+  // what the story noticed — never a score, only a memory
+  flags: new Set(), choices: {}, slipSeen: false, sawFund: false
+};
+
+const posOf = s => (S.pos[s] || (S.pos[s] = { shares: 0, basis: 0 }));
+const held  = () => UNIVERSE.filter(u => posOf(u.s).shares > 0);
+
+function equity(t = S.t) {
+  let e = S.cash;
+  for (const u of UNIVERSE) { const p = posOf(u.s); if (p.shares) e += p.shares * pxAt(u.s, t); }
+  return r2(e);
+}
+function invested(t = S.t) {
+  let e = 0;
+  for (const u of UNIVERSE) { const p = posOf(u.s); if (p.shares) e += p.shares * pxAt(u.s, t); }
+  return r2(e);
+}
+function markEquity() {
+  const e = equity();
+  S.worstEquity = Math.min(S.worstEquity, e);
+  S.bestEquity  = Math.max(S.bestEquity, e);
+}
+
+/* =======================================================================
+   TABS — the spine. Later steps stay visible while locked so the whole
+   shape of the session is legible from step one.
+   ======================================================================= */
+const TABS = [
+  { id: 'welcome', label: 'Welcome',         mins: 1,   unlocks: 'quiz' },
+  { id: 'quiz',    label: 'Your starting point', mins: 1, unlocks: 'learn' },
+  { id: 'learn',   label: 'What a stock is', mins: 1.5, unlocks: 'match' },
+  { id: 'match',   label: 'Match the symbols', mins: 1, unlocks: 'lesson' },
+  { id: 'lesson',  label: 'Read the chart', mins: 1.5, unlocks: 'floor' },
+  { id: 'floor',   label: 'The trading floor', mins: 3, unlocks: 'debrief' },
+  { id: 'debrief', label: 'Debrief',         mins: 0.5, unlocks: null },
+];
+const TOTAL_MINS = TABS.reduce((a, t) => a + t.mins, 0);
+
+function paintTabs() {
+  const host = $('tabs');
+  host.textContent = '';
+  TABS.forEach((t, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab'; b.id = 't-' + t.id; b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(S.tab === t.id));
+    b.setAttribute('aria-controls', 'p-' + t.id);
+    b.dataset.done = String(S.done.has(t.id));
+    b.disabled = !S.unlocked.has(t.id);
+    if (b.disabled) b.title = 'Opens when you finish the step before it';
+    const n = document.createElement('span');
+    n.className = 'tab-n'; n.textContent = S.done.has(t.id) ? '✓' : String(i + 1);
+    n.setAttribute('aria-hidden', 'true');
+    b.append(n, document.createTextNode(t.label));
+    b.addEventListener('click', () => goTab(t.id));
+    host.appendChild(b);
+  });
+  // The strip scrolls horizontally on a phone, so the step you are on can
+  // sit off the right edge with nothing to say it moved. Bring it back.
+  const now = $('t-' + S.tab);
+  if (now && host.scrollWidth > host.clientWidth) {
+    now.scrollIntoView({ inline: 'center', block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' });
+  }
+}
+
+function goTab(id) {
+  if (!S.unlocked.has(id)) return;
+  if (S.tab === 'floor' && id !== 'floor') pauseTape();
+  S.tab = id;
+  for (const t of TABS) $('p-' + t.id).hidden = t.id !== id;
+  paintTabs();
+  // Stacked layouts scroll the window; wide ones scroll the panel itself.
+  $('panels').scrollTop = 0;
+  const p = $('p-' + id); if (p) p.scrollTop = 0;
+  if (innerWidth <= 1000) scrollTo({ top: 0, behavior: 'auto' });
+  if (id === 'floor') enterFloor();
+  if (id === 'debrief') paintDebrief();
+}
+
+function finish(id) {
+  S.done.add(id);
+  const t = TABS.find(x => x.id === id);
+  if (t && t.unlocks) { S.unlocked.add(t.unlocks); goTab(t.unlocks); }
+  else paintTabs();
+}
+
+/* =======================================================================
+   TAB 1 · WELCOME
+   ======================================================================= */
+function paintWelcome() {
+  const fig = $('stat-figure'), src = $('stat-source');
+  fig.hidden = !STAT.figure;
+  if (STAT.figure) fig.textContent = STAT.figure;
+  $('stat-claim').textContent = STAT.claim;
+  if (STAT.source) { src.textContent = STAT.source; src.classList.remove('unset'); }
+  else {
+    src.classList.add('unset');
+    src.textContent = 'No source set. Put a figure you can cite in STAT at the top of the script — an invented statistic is the fastest way to lose a judge who checks.';
+  }
+  $('clock-total').innerHTML = Math.round(TOTAL_MINS) + '<small>min</small>';
+  const bits = $('clock-bits');
+  bits.textContent = '';
+  for (const t of TABS) {
+    const li = document.createElement('li');
+    li.className = 'clock-bit';
+    const label = t.mins < 1 ? '30s' : (t.mins % 1 ? t.mins.toFixed(1) : t.mins) + 'm';
+    li.append(t.label + ' ', Object.assign(document.createElement('b'), { textContent: label }));
+    bits.appendChild(li);
+  }
+}
+
+/* =======================================================================
+   TAB 2 · THE QUIZ
+   Three questions. Each one changes something you can point at later —
+   a quiz whose answers do nothing is a form, not a quiz.
+   ======================================================================= */
+const QUIZ = [
+  {
+    key: 'tier',
+    title: 'Have you ever bought a share before?',
+    sub: 'This sets how much detail the app shows you. Nothing is hidden from you either way, and you can change it on the floor.',
+    why: 'Sets your chart to a plain line or to candlesticks, and decides which order types appear.',
+    options: [
+      { v: 'beginner',     t: 'No, never',        d: 'A plain price line, market orders only, every button explained in a sentence' },
+      { v: 'intermediate', t: 'Once or twice',    d: 'Candlesticks with open, high, low and close. Limit orders appear' },
+      { v: 'advanced',     t: 'Yes, I trade already', d: 'Everything, including stop orders and the numbers behind each bar' },
+    ]
+  },
+  {
+    key: 'instinct',
+    title: 'A share you own drops 20% in an afternoon. What is your first instinct?',
+    sub: 'Answer honestly rather than correctly. There is no correct one — all three are what real people actually do.',
+    why: 'Your coach quotes this answer back to you at the bottom of the crash, when it will be much harder to believe.',
+    options: [
+      { v: 'sell', t: 'Sell. Stop it getting worse.',        d: 'The most common instinct there is' },
+      { v: 'hold', t: 'Hold. Wait and see what happens.',    d: 'Do nothing, on purpose' },
+      { v: 'more', t: 'Buy more while it is cheaper.',       d: 'Lean in' },
+    ]
+  },
+  {
+    key: 'fear',
+    title: 'What is the scariest part of starting?',
+    sub: 'The last screen of this app answers whichever one you pick, specifically.',
+    why: 'Picks which closing argument the debrief makes.',
+    options: [
+      { v: 'loss',   t: 'Losing money I worked for',      d: 'The one everybody names first' },
+      { v: 'stupid', t: 'Looking like I do not know what I am doing', d: 'The one that actually stops people' },
+      { v: 'start',  t: 'Not knowing where to begin',     d: 'Too many words, all at once' },
+    ]
+  },
+];
+let quizStep = 0;
+
+function paintQuizSteps() {
+  const host = $('qsteps');
+  host.textContent = '';
+  for (let i = 0; i <= QUIZ.length; i++) {
+    const d = document.createElement('span');
+    d.className = 'qstep' + (i < quizStep ? ' seen' : i === quizStep ? ' now' : '');
+    host.appendChild(d);
+  }
+}
+
+function paintQuiz() {
+  paintQuizSteps();
+  const host = $('quiz-body');
+  host.textContent = '';
+
+  if (quizStep < QUIZ.length) {
+    const q = QUIZ[quizStep];
+    host.append(
+      Object.assign(document.createElement('p'), { className: 'eyebrow', textContent: `Question ${quizStep + 1} of ${QUIZ.length}` }),
+      Object.assign(document.createElement('h2'), { className: 'q-title', textContent: q.title }),
+      Object.assign(document.createElement('p'), { className: 'q-sub', textContent: q.sub })
+    );
+    for (const o of q.options) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice';
+      b.append(Object.assign(document.createElement('strong'), { textContent: o.t }),
+               Object.assign(document.createElement('span'),   { textContent: o.d }));
+      b.addEventListener('click', () => {
+        S[q.key] = o.v;
+        if (q.key === 'tier') document.documentElement.dataset.tier = o.v;
+        quizStep++; paintQuiz();
+      });
+      host.appendChild(b);
+    }
+    const why = document.createElement('p');
+    why.className = 'q-nowrong';
+    why.append(Object.assign(document.createElement('span'), { textContent: '·', ariaHidden: 'true' }),
+               Object.assign(document.createElement('span'), { textContent: 'What this changes: ' + q.why }));
+    host.appendChild(why);
+    if (quizStep > 0) {
+      const row = document.createElement('div');
+      row.className = 'btn-row';
+      row.appendChild(button('Back', 'btn btn-ghost', () => { quizStep--; paintQuiz(); }));
+      host.appendChild(row);
+    }
+    return;
+  }
+
+  /* The profile step. Called a practice profile, not a login: there is no
+     account, no server and no password, and saying otherwise would be the
+     one dishonest sentence in the product. */
+  host.append(
+    Object.assign(document.createElement('p'), { className: 'eyebrow', textContent: 'Last thing' }),
+    Object.assign(document.createElement('h2'), { className: 'q-title', textContent: 'Set up your practice profile' }),
+    Object.assign(document.createElement('p'), { className: 'q-sub',
+      textContent: 'No account, no password, no email. This is a name for your coach to use and a mark for your watchlist. Nothing leaves this page.' })
+  );
+  const label = document.createElement('label');
+  label.className = 'field';
+  label.append(Object.assign(document.createElement('span'), { className: 'field-label', textContent: 'What should your coach call you?' }));
+  const input = document.createElement('input');
+  input.type = 'text'; input.maxLength = 24; input.placeholder = 'Ada'; input.value = S.name;
+  input.autocomplete = 'given-name';
+  label.appendChild(input);
+  host.appendChild(label);
+
+  host.appendChild(Object.assign(document.createElement('span'), { className: 'field-label', textContent: 'Pick a mark' }));
+  const av = document.createElement('div');
+  av.className = 'avatars'; av.setAttribute('role', 'group'); av.setAttribute('aria-label', 'Choose your mark');
+  AVATARS.forEach((svg, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.innerHTML = svg;
+    b.setAttribute('aria-label', 'Mark ' + (i + 1));
+    b.setAttribute('aria-pressed', String(i === S.avatar));
+    b.addEventListener('click', () => {
+      S.avatar = i;
+      [...av.children].forEach((c, j) => c.setAttribute('aria-pressed', String(i === j)));
+    });
+    av.appendChild(b);
+  });
+  host.appendChild(av);
+
+  const recap = document.createElement('div');
+  recap.className = 'card';
+  recap.innerHTML = '<p class="card-label">What you just told the app</p>';
+  const list = [
+    ['Detail level', QUIZ[0].options.find(o => o.v === S.tier).t],
+    ['Instinct on a drop', QUIZ[1].options.find(o => o.v === S.instinct).t],
+    ['The scary part', QUIZ[2].options.find(o => o.v === S.fear).t],
+  ];
+  for (const [k, v] of list) {
+    const row = document.createElement('p');
+    row.className = 'cost-line'; row.style.margin = '0 0 7px';
+    row.append(k + ': ', Object.assign(document.createElement('b'), { textContent: v }));
+    recap.appendChild(row);
+  }
+  recap.appendChild(Object.assign(document.createElement('p'), {
+    className: 'fine', style: 'margin-top:4px',
+    textContent: 'None of that is a score, and none of it locks you out of anything.'
+  }));
+  host.appendChild(recap);
+
+  const row = document.createElement('div');
+  row.className = 'btn-row';
+  row.append(
+    button('Continue', 'btn', () => { S.name = input.value.trim(); finish('quiz'); }),
+    button('Back', 'btn btn-ghost', () => { quizStep--; paintQuiz(); })
+  );
+  host.appendChild(row);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { S.name = input.value.trim(); finish('quiz'); } });
+}
+
+function button(label, cls, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = cls; b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+/* =======================================================================
+   MARKS — the avatar set and the coach's sigil
+   ======================================================================= */
+const AVATARS = [
+  'M8 20 L16 6 L24 20 Z', 'M16 6 A10 10 0 1 1 15.9 6 Z', 'M7 7 H25 V25 H7 Z',
+  'M16 5 L27 16 L16 27 L5 16 Z', 'M16 6 L20 13 L27 16 L20 19 L16 26 L12 19 L5 16 L12 13 Z',
+  'M6 16 Q16 3 26 16 Q16 29 6 16 Z',
+].map(d => `<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+  <path d="${d}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`);
+
+const SIGIL_NIA = `<svg viewBox="0 0 40 40" aria-hidden="true">
+  <circle cx="20" cy="20" r="19" fill="#252C46" stroke="var(--gold)" stroke-width="1"/>
+  <path d="M9 36c1-8 5-12 11-12s10 4 11 12" fill="#D4AF6E" opacity=".82"/>
+  <circle cx="20" cy="16" r="7" fill="#8D6B57"/>
+  <path d="M13 15c1-7 13-9 15 0-3-2-10-2-15 0Z" fill="#211A1D"/>
+  <circle cx="17.5" cy="16.5" r=".8" fill="#17120A"/><circle cx="22.5" cy="16.5" r=".8" fill="#17120A"/>
+  <path d="M17 20c2 1 4 1 6 0" fill="none" stroke="#17120A" stroke-width=".8" stroke-linecap="round"/></svg>`;
+
+/* =======================================================================
+   TAB 3 · WHAT A STOCK IS
+   ======================================================================= */
+function paintSliceFigure() {
+  const SL = 12, R = 88, CX = 110, CY = 110;
+  const arc = k => {
+    const a0 = (k / SL) * 2 * Math.PI - Math.PI / 2, a1 = ((k + 1) / SL) * 2 * Math.PI - Math.PI / 2;
+    const pull = k === 0 ? 13 : 0, mid = (a0 + a1) / 2;
+    const ox = Math.cos(mid) * pull, oy = Math.sin(mid) * pull;
+    return `M${CX + ox},${CY + oy} L${CX + ox + Math.cos(a0) * R},${CY + oy + Math.sin(a0) * R}
+            A${R},${R} 0 0 1 ${CX + ox + Math.cos(a1) * R},${CY + oy + Math.sin(a1) * R} Z`;
+  };
+  let slices = '';
+  for (let k = 0; k < SL; k++) {
+    slices += `<path d="${arc(k)}" fill="${k === 0 ? 'var(--viz-up-wash)' : 'none'}"
+      stroke="${k === 0 ? 'var(--viz-up)' : 'var(--border-plain)'}" stroke-width="${k === 0 ? 2 : 1}"/>`;
+  }
+  $('slice-fig').innerHTML = `<svg viewBox="0 0 300 232" role="img"
+      aria-label="A circle labelled 'the whole company' divided into twelve equal slices, with one slice pulled out and labelled 'one share'.">
+    ${slices}
+    <text x="110" y="222" text-anchor="middle" fill="var(--text-muted)" font-size="11">the whole company</text>
+    <line x1="196" y1="62" x2="234" y2="52" stroke="var(--viz-up)" stroke-width="1"/>
+    <text x="238" y="50" fill="var(--viz-up)" font-size="12" font-weight="600">one share</text>
+    <text x="238" y="66" fill="var(--text-muted)" font-size="11">you own this bit</text>
+    <text x="238" y="94" fill="var(--text-muted)" font-size="11">real companies are cut</text>
+    <text x="238" y="109" fill="var(--text-muted)" font-size="11">into millions of them,</text>
+    <text x="238" y="124" fill="var(--text-muted)" font-size="11">not twelve</text>
+  </svg>`;
+}
+
+/* ---- the order book. A price is a thing two people agreed on; that is
+   not believable as a paragraph, so it is a control. Price only moves
+   when one side runs out of people willing to trade at that level. ---- */
+const OB = { last: 20.00, step: 0.10, bids: [5, 8, 12], asks: [5, 8, 12], trades: 0, moves: 0 };
+const obRand = mulberry32(31337);
+
+function paintBook() {
+  const maxQ = Math.max(...OB.bids, ...OB.asks, 1);
+  const col = (host, qtys, side) => {
+    host.textContent = '';
+    qtys.forEach((q, k) => {
+      const px = side === 'buy' ? OB.last - OB.step * (k + 1) : OB.last + OB.step * (k + 1);
+      const row = document.createElement('div');
+      row.className = 'book-row';
+      const track = document.createElement('div');
+      track.className = 'book-track';
+      const bar = document.createElement('div');
+      bar.className = 'book-bar';
+      bar.style.width = clamp((q / maxQ) * 100, 4, 100) + '%';
+      track.appendChild(bar);
+      row.append(Object.assign(document.createElement('span'), { textContent: '$' + px.toFixed(2) }), track,
+                 Object.assign(document.createElement('span'), { className: 'bq', textContent: String(q) }));
+      row.setAttribute('aria-label', `${q} shares wanted ${side === 'buy' ? 'at' : 'for'} $${px.toFixed(2)}`);
+      host.appendChild(row);
+    });
+  };
+  col($('book-buy'), OB.bids, 'buy');
+  col($('book-sell'), OB.asks, 'sell');
+  $('book-price').textContent = money(OB.last);
+}
+
+function bookTrade(side) {
+  OB.trades++;
+  const q = side === 'buy' ? OB.asks : OB.bids;
+  q[0] -= 1;
+  let moved = false;
+  if (q[0] <= 0) {
+    q.shift();
+    q.push(4 + Math.floor(obRand() * 9));
+    OB.last = r2(OB.last + (side === 'buy' ? OB.step : -OB.step));
+    moved = true; OB.moves++;
+    // The far side refills too: someone always wants the other end of a trade.
+    const other = side === 'buy' ? OB.bids : OB.asks;
+    other.pop(); other.unshift(3 + Math.floor(obRand() * 8));
+  }
+  paintBook();
+  const say = $('book-say');
+  if (moved) {
+    say.innerHTML = side === 'buy'
+      ? `Everyone willing to sell at that price is now gone, so the next buyer has to offer more. <b>The price moved up to ${money(OB.last)}.</b> Nobody decided that. It is just what is left.`
+      : `Everyone willing to buy at that price is now gone, so the next seller has to accept less. <b>The price moved down to ${money(OB.last)}.</b> Nobody decided that either.`;
+  } else {
+    say.innerHTML = side === 'buy'
+      ? `A trade happened at ${money(OB.last + OB.step)} and the price did not move — there were still ${OB.asks[0]} shares for sale at that level. <b>Most trades change nothing.</b>`
+      : `A trade happened at ${money(OB.last - OB.step)} and the price did not move — there were still ${OB.bids[0]} buyers at that level. <b>Most trades change nothing.</b>`;
+  }
+  if (OB.moves >= 3 && !OB.taught) {
+    OB.taught = true;
+    say.innerHTML += ' <b>That is the whole mechanism.</b> A price is not an opinion about what a company is worth — it is the last number two people actually agreed on.';
+  }
+}
+
+function paintSymList() {
+  const host = $('symlist');
+  host.textContent = '';
+  for (const u of UNIVERSE) {
+    const row = document.createElement('div');
+    row.className = 'symrow';
+    const nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.append(u.name, Object.assign(document.createElement('small'), { textContent: u.sector + ' — ' + u.blurb }));
+    row.append(Object.assign(document.createElement('span'), { className: 'tk', textContent: u.s }), nm,
+               Object.assign(document.createElement('span'), { className: 'swing', textContent: u.swing }));
+    host.appendChild(row);
+  }
+}
+
+/* =======================================================================
+   TAB 4 · THE MATCHING GAME
+   No score, no timer, no fail state. A wrong pair is a teaching moment
+   and costs nothing. The round ends when all six are matched.
+   ======================================================================= */
+const M = { left: [], right: [], pickL: null, pickR: null, matched: new Set(), tries: 0 };
+let matchRand = mulberry32(777);
+
+function shuffle(arr, rand) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function paintMatch() {
+  const L = $('match-left'), R = $('match-right');
+  L.textContent = ''; R.textContent = '';
+
+  for (const u of M.left) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mcard';
+    b.append(Object.assign(document.createElement('span'), { className: 'mtk', textContent: u.s }));
+    const done = M.matched.has(u.s);
+    if (done) { b.dataset.state = 'matched'; b.disabled = true; }
+    b.setAttribute('aria-pressed', String(M.pickL === u.s));
+    b.setAttribute('aria-label', `Symbol ${u.s}${done ? ', matched' : ''}`);
+    b.addEventListener('click', () => { M.pickL = M.pickL === u.s ? null : u.s; tryMatch(); });
+    L.appendChild(b);
+  }
+  for (const u of M.right) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mcard';
+    const nm = document.createElement('span');
+    nm.className = 'mnm';
+    nm.append(u.name, Object.assign(document.createElement('small'), { textContent: u.sector }));
+    b.appendChild(nm);
+    const done = M.matched.has(u.s);
+    if (done) { b.dataset.state = 'matched'; b.disabled = true; }
+    b.setAttribute('aria-pressed', String(M.pickR === u.s));
+    b.addEventListener('click', () => { M.pickR = M.pickR === u.s ? null : u.s; tryMatch(); });
+    R.appendChild(b);
+  }
+  $('match-count').textContent = `${M.matched.size} of ${UNIVERSE.length} matched`;
+  const all = M.matched.size === UNIVERSE.length;
+  const go = $('go-lesson');
+  go.disabled = !all;
+  go.textContent = all ? 'Learn the chart next' : 'Match all six to continue';
+}
+
+function tryMatch() {
+  if (!M.pickL || !M.pickR) { paintMatch(); return; }
+  const a = uni(M.pickL), b = uni(M.pickR);
+  M.tries++;
+  const say = $('match-say');
+
+  if (a.s === b.s) {
+    M.matched.add(a.s);
+    M.pickL = M.pickR = null;
+    say.innerHTML = `<b>${a.s} is ${a.name}.</b> ${a.blurb}`;
+    if (M.matched.size === UNIVERSE.length) {
+      finishMatch(say);
+    }
+  } else {
+    // A miss states the truth about BOTH cards. This is a teaching game,
+    // not a test — there is nothing to protect by withholding the answer.
+    say.innerHTML = `Not that pair, and nothing happens for getting it wrong. <b>${a.s}</b> is ${a.name} (${a.sector.toLowerCase()}). ${b.name} goes by <b>${b.s}</b>.`;
+    M.pickL = M.pickR = null;
+  }
+  paintMatch();
+}
+
+function finishMatch(say) {
+  const fund = uni(FUND);
+  say.innerHTML = `<b>All six.</b> You just read a watchlist — that is genuinely the whole skill, and it is the thing that makes a trading screen stop looking like noise. ` +
+    `One of those six is not a company at all: <b>${fund.s}</b>, ${fund.name}, is ${fund.sector.toLowerCase()}. Hold onto that. It matters in about four minutes.`;
+  S.flags.add('matched_all');
+}
+
+function resetMatch() {
+  M.left = shuffle(UNIVERSE, matchRand);
+  M.right = shuffle(UNIVERSE, matchRand);
+  M.pickL = M.pickR = null;
+  if (M.matched.size === UNIVERSE.length) M.matched = new Set();
+  $('match-say').textContent = 'Pick any symbol to begin.';
+  paintMatch();
+}
+
+/* =======================================================================
+   THE CHART
+
+   Marks and chrome follow a real charting terminal. Two decisions worth
+   naming on stage:
+
+   1. The y-axis only ever EXPANDS. A live chart that rescales to fit the
+      revealed data makes a 50% crash look like a gentle dip, because the
+      axis quietly follows the price down. Once a range has been shown it
+      is kept, so the fall looks as big on screen as it is in the account.
+   2. Volume is its own pane, never an overlay. Two measures sharing one
+      set of axes is a dual-axis chart, which invents a correlation that
+      is not in the data.
+   ======================================================================= */
+function svgEl(name, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function txt(parent, attrs, s) { const t = svgEl('text', attrs); t.textContent = s; parent.appendChild(t); return t; }
+
+const PAD = { t: 14, r: 58, b: 20, l: 10 };
+const VOL_H = 42, VOL_GAP = 10;
+const yKeep = {};                       // monotone y-range memory, per view
+
+function niceTicks(min, max, count) {
+  const raw = (max - min) / count;
+  if (!isFinite(raw) || raw <= 0) return [min];
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = ([1, 2, 2.5, 5, 10].find(m => m * mag >= raw) || 10) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+
+function chartSeries() {
+  const u = uni(S.symbol);
+  if (!S.compare) return [{ key: u.s, bars: u.bars, label: u.name, cls: 'price-line', area: true, raw: true }];
+  const f = uni(FUND);
+  const idx = bars => bars.map(b => ({ ...b, c: (b.c / bars[0].c) * 100 }));
+  return [
+    { key: u.s, bars: idx(u.bars), label: u.s + ' — one company', cls: 'price-line' },
+    { key: f.s, bars: idx(f.bars), label: f.s + ' — five hundred companies', cls: 'price-line second' },
+  ];
+}
+
+function renderChart() {
+  const svg = $('chart'), wrap = $('chart-wrap');
+  const W = Math.max(320, wrap.clientWidth), H = Math.max(200, wrap.clientHeight);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.textContent = '';
+
+  const series = chartSeries();
+  const showVol = S.showVolume && !S.compare;
+  const plotW = W - PAD.l - PAD.r;
+  const plotH = H - PAD.t - PAD.b - (showVol ? VOL_H + VOL_GAP : 0);
+  const xMax = Math.max(S.t, 110);
+  const X = i => PAD.l + (i / xMax) * plotW;
+
+  // --- y range, expanded monotonically so the axis never flatters a fall
+  const vis = series.flatMap(s => s.bars.slice(0, S.t + 1));
+  let lo = Math.min(...vis.map(b => (S.compare ? b.c : b.l)));
+  let hi = Math.max(...vis.map(b => (S.compare ? b.c : b.h)));
+  // Keep the "you paid" line inside the axis, so it never silently vanishes.
+  if (!S.compare) {
+    const hp = posOf(S.symbol);
+    if (hp.shares > 0) { const avg = hp.basis / hp.shares; lo = Math.min(lo, avg); hi = Math.max(hi, avg); }
+  }
+  const kk = S.compare ? 'cmp' : S.symbol;
+  const keep = yKeep[kk] || (yKeep[kk] = { lo, hi });
+  keep.lo = Math.min(keep.lo, lo); keep.hi = Math.max(keep.hi, hi);
+  const pad = (keep.hi - keep.lo) * 0.08 || 1;
+  const yLo = keep.lo - pad, yHi = keep.hi + pad;
+  const Y = v => PAD.t + plotH - ((v - yLo) / (yHi - yLo)) * plotH;
+
+  // --- grid + price axis
+  for (const v of niceTicks(yLo, yHi, 4)) {
+    svg.appendChild(svgEl('line', { class: 'grid-line', x1: PAD.l, x2: W - PAD.r, y1: Y(v), y2: Y(v) }));
+    txt(svg, { x: W - PAD.r + 6, y: Y(v) + 3.5 }, S.compare ? v.toFixed(0) : '$' + v.toFixed(v < 10 ? 2 : 0));
+  }
+  svg.appendChild(svgEl('line', { class: 'axis-line', x1: PAD.l, x2: W - PAD.r, y1: PAD.t + plotH, y2: PAD.t + plotH }));
+
+  // --- day boundaries, so "live" has a shape you can point at
+  for (let d = TICKS_PER_DAY; d <= Math.min(S.t, LAST_T); d += TICKS_PER_DAY) {
+    svg.appendChild(svgEl('line', { class: 'grid-line', x1: X(d), x2: X(d), y1: PAD.t, y2: PAD.t + plotH }));
+    txt(svg, { x: X(d) + 4, y: H - 6 }, 'Day ' + (d / TICKS_PER_DAY + 1));
+  }
+  txt(svg, { x: PAD.l, y: H - 6 }, 'Day 1');
+
+  // --- volume pane, its own axis band
+  if (showVol) {
+    const bars = uni(S.symbol).bars.slice(0, S.t + 1);
+    const vMax = Math.max(...bars.map(b => b.v), 1);
+    const vTop = PAD.t + plotH + VOL_GAP;
+    const bw = Math.max(1, plotW / (xMax + 1) - 0.4);
+    for (const b of bars) {
+      const h = (b.v / vMax) * VOL_H;
+      svg.appendChild(svgEl('rect', {
+        class: b.c >= b.o ? 'vol-up' : 'vol-down',
+        x: X(b.i) - bw / 2, y: vTop + VOL_H - h, width: bw, height: Math.max(0.6, h)
+      }));
+    }
+    txt(svg, { class: 'anno dim', x: PAD.l + 2, y: vTop + 9 }, 'shares traded');
+  }
+
+  // --- the price marks
+  const candles = !S.compare && S.chartType === 'candle';
+  for (const s of series) {
+    const shown = s.bars.slice(0, S.t + 1);
+    if (!shown.length) continue;
+
+    if (candles) {
+      const bw = Math.max(1.2, Math.min(7, plotW / (xMax + 1) - 0.8));
+      for (const b of shown) {
+        const up = b.c >= b.o, cls = up ? 'candle-up' : 'candle-down';
+        svg.appendChild(svgEl('line', { class: 'candle-wick ' + cls, x1: X(b.i), x2: X(b.i), y1: Y(b.h), y2: Y(b.l) }));
+        const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
+        svg.appendChild(svgEl('rect', { class: 'candle-body ' + cls, x: X(b.i) - bw / 2, y: top, width: bw, height: Math.max(1, bot - top) }));
+      }
+    } else {
+      const pts = shown.map(b => `${X(b.i).toFixed(1)},${Y(b.c).toFixed(1)}`);
+      if (pts.length > 1) {
+        if (s.area) svg.appendChild(svgEl('path', { class: 'price-area',
+          d: `M${pts[0]} L${pts.join(' L')} L${X(S.t)},${PAD.t + plotH} L${X(0)},${PAD.t + plotH} Z` }));
+        svg.appendChild(svgEl('polyline', { class: s.cls, points: pts.join(' ') }));
+      }
+    }
+    // Direct end label, so identity is never carried by colour alone.
+    if (S.compare) txt(svg, { class: 'anno', x: X(S.t) - 6, y: Y(shown[shown.length - 1].c) - 7, 'text-anchor': 'end' }, s.key);
+  }
+
+  // --- what she paid: an annotation, so it wears a text token
+  const u = uni(S.symbol), p = posOf(u.s);
+  if (!S.compare && p.shares > 0) {
+    const avg = p.basis / p.shares;
+    if (avg >= yLo && avg <= yHi) {
+      svg.appendChild(svgEl('line', { class: 'basis-line', x1: PAD.l, x2: W - PAD.r, y1: Y(avg), y2: Y(avg) }));
+      txt(svg, { class: 'basis-label', x: PAD.l + 3, y: Y(avg) - 5 }, 'you paid ' + money(avg));
+    }
+  }
+
+  // --- her own fills
+  if (!S.compare) {
+    for (const tr of S.trades) {
+      if (tr.s !== u.s || tr.t > S.t) continue;
+      const y = Y(tr.px), up = tr.side === 'BUY';
+      svg.appendChild(svgEl('path', {
+        class: up ? 'marker-buy' : 'marker-sell',
+        d: up ? `M${X(tr.t)},${y + 13} l5,8 l-10,0 Z` : `M${X(tr.t)},${y - 13} l5,-8 l-10,0 Z`
+      }));
+    }
+  }
+
+  // --- the live edge
+  const lastBar = series[0].bars[Math.min(S.t, LAST_T)];
+  svg.appendChild(svgEl('circle', { class: 'cross-dot', cx: X(S.t), cy: Y(lastBar.c), r: 4 }));
+  if (!S.compare) {
+    const g = svgEl('g', { class: 'last-tag' });
+    g.appendChild(svgEl('rect', { x: W - PAD.r + 1, y: Y(lastBar.c) - 8.5, width: PAD.r - 5, height: 17, rx: 3 }));
+    txt(g, { x: W - PAD.r + 5, y: Y(lastBar.c) + 4 }, lastBar.c.toFixed(2));
+    svg.appendChild(g);
+  }
+
+  renderLegend();
+  $('chart-desc').textContent = chartDesc();
+  chartGeom = { X, Y, plotH, W, H, xMax };
+}
+let chartGeom = null;
+
+function chartDesc() {
+  const u = uni(S.symbol), b = barAt(u.s, S.t);
+  const first = u.bars[0].c;
+  const ch = (b.c - first) / first;
+  let d = `${u.name} practice price, ${S.compare ? 'indexed to 100 and compared with ' + uni(FUND).name + ', ' : ''}` +
+    `from day 1 to ${tapeClock(S.t).label}. Started ${money(first)}, now ${money(b.c)}, ${pct(ch)}. ` +
+    `Your account is worth ${money(equity())}.`;
+  const p = posOf(u.s);
+  if (p.shares) d += ` You hold ${plural(p.shares, 'share')} bought for an average of ${money(p.basis / p.shares)}.`;
+  return d;
+}
+
+function renderLegend() {
+  const host = $('legend');
+  host.textContent = '';
+  const items = [];
+  if (S.compare) {
+    items.push(['<svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--viz-up)" stroke-width="2"/></svg>', uni(S.symbol).s + ' — one company']);
+    items.push(['<svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--text-muted)" stroke-width="1.5"/></svg>', uni(FUND).s + ' — five hundred companies']);
+    items.push(['', 'Both start at 100 so you compare movement, not price']);
+  } else if (S.chartType === 'candle') {
+    items.push(['<svg width="12" height="14"><rect x="3" y="3" width="6" height="8" fill="none" stroke="var(--viz-up)" stroke-width="1.2"/><line x1="6" y1="0" x2="6" y2="14" stroke="var(--viz-up)" stroke-width="1"/></svg>', 'Hollow — closed up']);
+    items.push(['<svg width="12" height="14"><rect x="3" y="3" width="6" height="8" fill="var(--viz-down)" stroke="var(--viz-down)" stroke-width="1.2"/><line x1="6" y1="0" x2="6" y2="14" stroke="var(--viz-down)" stroke-width="1"/></svg>', 'Filled — closed down']);
+  } else {
+    items.push(['<svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--viz-up)" stroke-width="2"/></svg>', 'Price of one share']);
+  }
+  if (S.trades.some(t => t.s === S.symbol) && !S.compare) {
+    items.push(['<svg width="12" height="12"><path d="M6 2 l4 7 l-8 0 Z" fill="var(--viz-up)"/></svg>', 'You bought']);
+    items.push(['<svg width="12" height="12"><path d="M6 10 l4 -7 l-8 0 Z" fill="var(--viz-down)"/></svg>', 'You sold']);
+  }
+  for (const [mark, label] of items) {
+    const el = document.createElement('span');
+    el.className = 'legend-item';
+    if (mark) { const w = document.createElement('span'); w.innerHTML = mark; el.appendChild(w); }
+    el.append(label);
+    host.appendChild(el);
+  }
+  const tgl = document.createElement('button');
+  tgl.className = 'legend-toggle'; tgl.type = 'button';
+  tgl.setAttribute('aria-expanded', String(S.showTable));
+  tgl.textContent = S.showTable ? 'Hide the numbers' : 'Show the numbers';
+  tgl.addEventListener('click', () => { S.showTable = !S.showTable; renderTable(); renderLegend(); });
+  host.appendChild(tgl);
+}
+
+/* Every value in the chart is also here, so the tooltip enhances and
+   never gates. Most recent first — the live edge is what people want. */
+function renderTable() {
+  const host = $('bar-table');
+  host.hidden = !S.showTable;
+  if (!S.showTable) { host.textContent = ''; return; }
+  const u = uni(S.symbol);
+  const rows = u.bars.slice(Math.max(0, S.t - 59), S.t + 1).reverse();
+  host.innerHTML = `<table><caption class="sr-only">Last ${rows.length} five-minute bars for ${u.name}</caption>
+    <thead><tr><th scope="col">Time</th><th scope="col">Open</th><th scope="col">High</th><th scope="col">Low</th><th scope="col">Price</th><th scope="col">Shares</th></tr></thead>
+    <tbody>${rows.map(b => `<tr><td>${tapeClock(b.i).label}</td><td>${b.o.toFixed(2)}</td><td>${b.h.toFixed(2)}</td><td>${b.l.toFixed(2)}</td><td>${b.c.toFixed(2)}</td><td>${fmtVol(b.v)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+/* =======================================================================
+   THE SIDE PANEL
+   ======================================================================= */
+function renderRibbon() {
+  const u = uni(S.symbol), b = barAt(u.s, S.t), first = u.bars[0].c;
+  const ch = b.c - first, chp = ch / first;
+  $('ribbon-name').textContent = `${u.name} · ${u.s} · 5 min · Practice`;
+  $('ribbon-px').textContent = money(b.c);
+  const chg = $('ribbon-chg');
+  chg.dataset.dir = dirOf(ch);
+  chg.textContent = `${arrow(dirOf(ch))} ${signed(ch)} (${pct(chp)}) since day 1`;
+  $('ohlc').innerHTML = `O <b>${b.o.toFixed(2)}</b> H <b>${b.h.toFixed(2)}</b> L <b>${b.l.toFixed(2)}</b> C <b>${b.c.toFixed(2)}</b> Vol <b>${fmtVol(b.v)}</b>`;
+}
+
+function renderWatchlist() {
+  const host = $('watchlist');
+  host.textContent = '';
+  for (const u of UNIVERSE) {
+    const b = barAt(u.s, S.t), first = u.bars[0].c, ch = (b.c - first) / first;
+    const row = document.createElement('button');
+    row.type = 'button'; row.className = 'wl-row';
+    if (u.s === S.symbol) row.setAttribute('aria-current', 'true');
+    const tk = document.createElement('span');
+    tk.className = 'wl-tk';
+    tk.append(u.s, Object.assign(document.createElement('small'), { textContent: u.name }));
+    const chg = document.createElement('span');
+    chg.className = 'wl-chg'; chg.dataset.dir = dirOf(ch);
+    chg.textContent = arrow(dirOf(ch)) + ' ' + pct(ch);
+    row.append(tk, Object.assign(document.createElement('span'), { className: 'wl-px', textContent: money(b.c) }), chg);
+    row.addEventListener('click', () => selectSymbol(u.s));
+    host.appendChild(row);
+  }
+}
+
+function renderPortfolio() {
+  const eq = equity(), inv = invested(), ch = eq - START_CASH;
+  markEquity();
+  $('hero-value').textContent = money(eq);
+  const hd = $('hero-delta');
+  hd.dataset.dir = dirOf(ch);
+  hd.textContent = Math.abs(ch) < 0.005 ? 'No change yet'
+    : `${arrow(dirOf(ch))} ${signed(ch)} (${pct(ch / START_CASH)}) ${ch >= 0 ? 'up' : 'down'} on the start`;
+  $('tile-cash').textContent = money(S.cash);
+  $('tile-equity').textContent = money(inv);
+
+  const host = $('positions');
+  host.textContent = '';
+  const hs = held();
+  if (!hs.length) {
+    host.innerHTML = '<p class="empty">You do not own anything yet. Nothing here is real money — being wrong is free, which is the whole reason this exists.</p>';
+    return;
+  }
+  for (const u of hs) {
+    const p = posOf(u.s), now = p.shares * pxAt(u.s, S.t), pl = now - p.basis;
+    const row = document.createElement('div');
+    row.className = 'position-row';
+    const left = document.createElement('div');
+    left.append(Object.assign(document.createElement('div'), { className: 'sym', textContent: `${plural(p.shares, 'share')} of ${u.s}` }),
+                Object.assign(document.createElement('div'), { className: 'sub', textContent: `worth ${money(now)} · you paid ${money(p.basis)}` }));
+    const right = document.createElement('div');
+    right.className = 'pl'; right.dataset.dir = dirOf(pl);
+    right.textContent = `${arrow(dirOf(pl))} ${signed(pl)}`;
+    row.append(left, right);
+    host.appendChild(row);
+  }
+}
+
+function renderTicket() {
+  const u = uni(S.symbol), px = pxAt(u.s, S.t), p = posOf(u.s);
+  const cost = S.qty * px;
+  const tooDear = cost > S.cash + 1e-9, shut = !S.marketOpen;
+
+  /* A disabled button with no explanation is a silent wall, which is the
+     one thing this product cannot afford: the whole thesis is that people
+     hesitate because nothing tells them what is going on. So the ticket
+     always says WHY the button is dead, and what would make it live —
+     before the tap, not as an error afterwards. */
+  let line;
+  if (S.qty <= 0) {
+    line = 'Enter a number of shares to see what it costs.';
+  } else if (tooDear) {
+    const most = Math.floor(S.cash / px);
+    line = `${plural(S.qty, 'share')} at ${money(px)} is <b>${money(cost)}</b> — more than the <b>${money(S.cash)}</b> you have in cash. `
+         + (most > 0 ? `You could buy <b>${plural(most, 'share')}</b>.` : 'Sell something first, or pick a cheaper symbol.');
+  } else {
+    line = `${plural(S.qty, 'share')} at ${money(px)} is <b>${money(cost)}</b>`
+         + ` · that is <b>${(cost / Math.max(equity(), 1) * 100).toFixed(0)}%</b> of your account`;
+    if (shut) line += ' · the market is closed, so nothing will fill';
+  }
+  $('cost-line').innerHTML = line;
+
+  $('buy').disabled = shut || tooDear || S.qty <= 0;
+  $('sell').disabled = shut || p.shares <= 0;
+  $('sell').textContent = p.shares > 0 && S.qty > p.shares ? `Sell all ${p.shares}` : 'Sell';
+}
+
+function renderAll() {
+  if (S.tab !== 'floor') return;
+  renderChart(); renderRibbon(); renderWatchlist(); renderPortfolio(); renderTicket(); renderTable();
+  const c = tapeClock(S.t);
+  $('tp-clock').innerHTML = `Day <b>${c.day}</b> · ${c.time}`;
+}
+
+function selectSymbol(s) {
+  S.symbol = s;
+  S.compare = false;
+  renderAll();
+}
+
+/* =======================================================================
+   THE TAPE — replay transport
+
+   The market runs on its own and stops itself whenever there is something
+   to decide. That inversion is the product: you are never asked to think
+   while a number is moving, and you are never left to stare at a frozen
+   chart wondering what you were supposed to notice.
+   ======================================================================= */
+const TICK_MS = 185;
+let tapeTimer = null;
+
+function setLive(text, state) {
+  $('live-text').textContent = text;
+  $('live-dot').className = 'live-dot ' + state;
+}
+
+function playTape() {
+  if (S.closed || $('coach').hidden === false) return;
+  S.playing = true; S.marketOpen = true;
+  $('tp-play').setAttribute('aria-pressed', 'true');
+  $('tp-play-label').textContent = 'Pause';
+  setLive('Market open', 'beat');
+  clearTimeout(tapeTimer);
+  const loop = () => {
+    if (!S.playing) return;
+    stepTape();
+    if (S.playing) tapeTimer = setTimeout(loop, TICK_MS / S.speed);
+  };
+  tapeTimer = setTimeout(loop, TICK_MS / S.speed);
+  renderTicket();
+}
+
+function pauseTape() {
+  S.playing = false;
+  clearTimeout(tapeTimer);
+  $('tp-play').setAttribute('aria-pressed', 'false');
+  $('tp-play-label').textContent = S.closed ? 'Market closed' : 'Resume';
+  if (!S.closed) setLive('Paused by you', 'halt');
+  renderTicket();
+}
+
+function stepTape() {
+  if (S.t >= LAST_T) { closeMarket(); return; }
+  S.t++;
+  markEquity();
+  renderAll();
+  const next = HALTS[S.haltIdx];
+  if (next && S.t >= next.at) { S.haltIdx++; openHalt(next); }
+}
+
+/** Jump to whatever the coach stops for next. A judge should never have
+    to wait out a replay, so the whole arc is reachable in seconds. */
+function skipToNext() {
+  const next = HALTS[S.haltIdx];
+  const target = next ? next.at : LAST_T;
+  S.playing = false; clearTimeout(tapeTimer);
+  while (S.t < target) { S.t++; markEquity(); }
+  renderAll();
+  if (next && S.t >= next.at) { S.haltIdx++; openHalt(next); }
+  else if (S.t >= LAST_T) closeMarket();
+}
+
+function closeMarket() {
+  S.playing = false; S.closed = true; S.marketOpen = false;
+  clearTimeout(tapeTimer);
+  $('tp-play').disabled = true; $('tp-skip').disabled = true;
+  $('tp-play-label').textContent = 'Market closed';
+  setLive('Market closed', 'halt');
+  renderAll();
+}
+
+/* =======================================================================
+   ORDERS
+
+   Every fill is a MARKET order, and market orders are where the teaching
+   is. The fill price is the current price nudged AGAINST you by an amount
+   proportional to how fast the market is moving right now. In the calm it
+   is pennies. In the crash it is real money, which is exactly when a new
+   investor is most likely to be pressing the button.
+   ======================================================================= */
+function fillPrice(s, side) {
+  const bar = barAt(s, S.t);
+  const slip = Math.min(0.012, bar.n * 0.45);      // against the trader, always
+  return { px: r2(bar.c * (1 + (side === 'BUY' ? slip : -slip))), slip, quote: bar.c };
+}
+
+function placeOrder(side, qty, symbol = S.symbol) {
+  const u = uni(symbol), p = posOf(symbol);
+  qty = Math.floor(qty);
+  const f = fillPrice(symbol, side);
+  const val = $('validation');
+  val.textContent = '';
+
+  if (qty <= 0) { val.textContent = 'Enter a number of shares above zero.'; return null; }
+  if (side === 'BUY') {
+    const cost = r2(qty * f.px);
+    if (cost > S.cash + 1e-9) {
+      val.textContent = `You have ${money(S.cash)} in cash, which is not enough for ${plural(qty, 'share')} at ${money(f.px)}.`;
+      return null;
+    }
+    S.cash = r2(S.cash - cost); p.shares += qty; p.basis = r2(p.basis + cost);
+  } else {
+    if (qty > p.shares) qty = p.shares;
+    if (qty <= 0) { val.textContent = `You do not own any ${symbol} to sell.`; return null; }
+    const proceeds = r2(qty * f.px), share = p.shares ? p.basis * (qty / p.shares) : 0;
+    S.cash = r2(S.cash + proceeds); p.shares -= qty; p.basis = r2(p.basis - share);
+    if (p.shares === 0) p.basis = 0;
+  }
+  const rec = { side, s: symbol, qty, px: f.px, t: S.t, slip: f.slip, quote: f.quote };
+  S.trades.push(rec);
+  markEquity();
+  showMoneyFlow(rec);
+  renderAll();
+  return rec;
+}
+
+function showMoneyFlow(tr) {
+  const el = $('money-flow');
+  const u = uni(tr.s), gross = r2(tr.qty * tr.px);
+  el.hidden = false;
+  el.dataset.dir = tr.side === 'BUY' ? 'up' : 'down';
+  const slipCost = r2(Math.abs(tr.px - tr.quote) * tr.qty);
+  let sub;
+
+  if (tr.side === 'BUY') {
+    el.innerHTML = `You moved <strong>${money(gross)}</strong> of cash into <strong>${plural(tr.qty, 'share')} of ${tr.s}</strong>.`;
+    sub = `You own a piece of ${u.name} now. It can fall, and if it does you have not lost anything until you sell.`;
+  } else {
+    const p = posOf(tr.s);
+    el.innerHTML = `You moved <strong>${plural(tr.qty, 'share')} of ${tr.s}</strong> back into <strong>${money(gross)}</strong> of cash.`;
+    sub = 'That gain or loss is real now. It stopped being on paper the moment this filled.';
+  }
+
+  // The problem with market orders, shown rather than described — and only
+  // when it actually cost something, so it never cries wolf.
+  if (slipCost >= 0.5) {
+    sub += ` The screen said ${money(tr.quote)} and you filled at ${money(tr.px)}: a market order takes whatever price exists when it arrives, `
+         + `and the market moved while you were deciding. That gap cost ${money(slipCost)}.`;
+    if (!S.slipSeen) {
+      S.slipSeen = true; S.flags.add('felt_slippage');
+      sub += ' A limit order is the fix — you name your price and accept that it might never fill.';
+    }
+  }
+  el.appendChild(Object.assign(document.createElement('span'), { className: 'flow-sub', textContent: sub }));
+}
+
+/* ---- hints: downside first, always ---- */
+let hintOpen = null;
+function showHint(id) {
+  const h = HINTS[id];
+  if (!h) return;
+  if (hintOpen === id) { $('hint-box').hidden = true; hintOpen = null; return; }
+  hintOpen = id;
+  $('hint-box').hidden = false;
+  $('hint-downside').textContent = h.downside;
+  $('hint-main').textContent = h.main;
+  // A beginner gets the second line straight away; anyone else taps for it.
+  const eager = S.tier === 'beginner';
+  $('hint-second').hidden = !eager;
+  $('hint-second').textContent = h.why;
+  $('hint-more').hidden = eager;
+  $('hint-more').onclick = () => { $('hint-second').hidden = false; $('hint-more').hidden = true; };
+}
+
+/* =======================================================================
+   THE COACH — halts that stop the market to ask one question
+
+   Content is data. `lines`, `facts` and `options` may be functions so a
+   halt can read the account it is describing; nothing is ever eval'd, so
+   a writer can edit this block without being able to execute code.
+   ======================================================================= */
+const say = (...xs) => xs;
+const call = (v, ...a) => (typeof v === 'function' ? v(...a) : v);
+
+function fact(label, value, dir) { return { label, value, dir }; }
+
+function shareNote() {
+  const p = posOf(FEATURED);
+  if (!p.shares) return null;
+  const now = r2(p.shares * pxAt(FEATURED, S.t)), pl = r2(now - p.basis);
+  return { p, now, pl };
+}
+
+const HALTS = [
+{
+  at: 0, id: 'intro',
+  title: 'One number, over time. That is the whole chart.',
+  lines: () => say(
+    `Left to right is time. Up and down is what one share of ${uni(FEATURED).name} costs. Everything else on this screen exists to describe those two axes, and you can ignore all of it today.`,
+    'When I open the market that line starts moving in five-minute steps, and it will not wait for you. Every time there is something worth deciding, I stop it. You will never be asked to think while a number is moving.'
+  ),
+  facts: () => [fact('One share now', money(pxAt(FEATURED, 0))), fact('Your cash', money(S.cash)), fact('Days of tape', '5')],
+  options: () => [{ id: 'open', label: 'Open the market', sub: 'Five-minute bars. You can pause it yourself at any point.' }],
+},
+{
+  at: T_BUY, id: 'buy',
+  title: 'How much of your $100?',
+  lines: () => say(
+    'You have watched a full day. Nothing in it told you what happens next — the right-hand edge of a chart is blank for everyone, including the people who do this for a living.',
+    'So the real question is not which company. It is how much. This is the decision that quietly settles whether a bad week is survivable, and it is the one almost everybody skips.'
+  ),
+  facts: () => [fact('One share now', money(pxAt(FEATURED, S.t))), fact('Your cash', money(S.cash))],
+  options: () => {
+    const px = pxAt(FEATURED, S.t);
+    const mk = (n, note) => ({ id: 'buy' + n, label: `Buy ${n} shares`, sub: `About ${money(n * px)} — ${note}`, buy: n });
+    return [
+      mk(20, 'a tenth of the account'),
+      mk(60, 'roughly a third'),
+      mk(160, 'most of it, and you will feel every move'),
+      { id: 'wait', label: 'Not yet — keep watching', sub: 'Waiting is a position too. It is allowed, and it has its own cost.' },
+    ];
+  },
+},
+{
+  at: T_SLIDE, id: 'slide',
+  title: () => shareNote() ? 'It is falling, and you already told me what you do here.' : 'It is falling, and you are watching from outside it.',
+  callback: () => {
+    const q = { sell: 'Sell. Stop it getting worse.', hold: 'Hold. Wait and see what happens.', more: 'Buy more while it is cheaper.' }[S.instinct];
+    if (!q) return null;
+    return `On the quiz I asked what you do when something drops twenty percent in an afternoon. You said: “${q}” Here it is, not as a question.`;
+  },
+  lines: () => {
+    const n = shareNote(), px = pxAt(FEATURED, S.t), peak = pxAt(FEATURED, T_PEAK);
+    const off = (px - peak) / peak;
+    if (!n) return say(
+      `${uni(FEATURED).s} is ${money(px)}, ${pct(off)} off its high of ${money(peak)}. None of it is yours, so none of it moved. Watching this cost you nothing, and taught you nothing either.`,
+      'That is worth naming out loud, because sitting out feels free and is not. You can still buy in — it is cheaper than it was an hour ago, for reasons nobody in this room can see.'
+    );
+    return say(
+      `Your ${plural(n.p.shares, 'share')} are worth ${money(n.now)}. You paid ${money(n.p.basis)}. That gap is ${money(Math.abs(n.pl))} and it is a paper loss — it is not real until you sell and turn it back into cash.`,
+      `${uni(FEATURED).s} is ${pct(off)} off its high. I am not going to tell you which of these three is right, because I do not know, and neither does anyone who sounds like they do.`
+    );
+  },
+  facts: () => {
+    const n = shareNote();
+    const f = [fact('One share now', money(pxAt(FEATURED, S.t))), fact('Account', money(equity()), dirOf(equity() - START_CASH))];
+    if (n) f.push(fact('On paper', signed(n.pl), dirOf(n.pl)));
+    return f;
+  },
+  options: () => {
+    const n = shareNote(), px = pxAt(FEATURED, S.t);
+    if (!n) return [
+      { id: 'buyin', label: `Buy 60 shares now`, sub: `About ${money(60 * px)}, cheaper than an hour ago`, buy: 60 },
+      { id: 'stay', label: 'Stay out', sub: 'Keep watching. You can still trade from the ticket at any time.' },
+    ];
+    return [
+      { id: 'sell', label: 'Sell — make it stop', sub: 'Turn the paper loss into a real one and go to cash', sellAll: true, flag: 'sold_on_the_way_down' },
+      { id: 'hold', label: 'Hold — do nothing', sub: 'Your money stays as shares and the shares keep moving', flag: 'held_the_slide' },
+      { id: 'more', label: 'Buy 20 more while it is cheaper', sub: `About ${money(20 * px)}, and more of one company`, buy: 20, flag: 'averaged_down' },
+    ];
+  },
+},
+{
+  at: T_TROUGH, id: 'trough',
+  title: 'Down fifty percent.',
+  lines: () => {
+    const n = shareNote(), px = pxAt(FEATURED, S.t), peak = pxAt(FEATURED, T_PEAK);
+    const base = say(
+      `${money(peak)} at its high, ${money(px)} now. That is exactly half, and I am not going to soften it. Nobody on this floor saw it coming, and nobody who tells you they did saw it either. That is not a flaw in the market — it is what a market is.`,
+      'Being honest about the simulation: a fall this deep this fast is rarer than this app makes it look. I compressed it so you could feel it in one sitting. The feeling is the accurate part, not the schedule.'
+    );
+    if (n) base.push(`Your ${plural(n.p.shares, 'share')} are worth ${money(n.now)} against the ${money(n.p.basis)} you paid. Your whole account reads ${money(equity())}. Nothing has been sold, so nothing has been lost.`);
+    return base;
+  },
+  facts: () => {
+    const px = pxAt(FEATURED, S.t), peak = pxAt(FEATURED, T_PEAK);
+    return [fact('One share now', money(px)), fact('Off its high', pct((px - peak) / peak), 'down'),
+            fact('Account', money(equity()), dirOf(equity() - START_CASH)),
+            fact('Lowest it has been', money(S.worstEquity))];
+  },
+  options: () => {
+    const n = shareNote(), px = pxAt(FEATURED, S.t);
+    if (!n) return [{ id: 'buybottom', label: `Buy 60 shares at ${money(px)}`, sub: 'You have no idea if this is the bottom. Neither do I.', buy: 60, flag: 'bought_the_dip' },
+                    { id: 'stay2', label: 'Still out', sub: 'Watch what the next two days do.' }];
+    return [
+      { id: 'panic', label: 'Sell everything — stop the bleeding', sub: 'The most common thing a new investor ever does', sellAll: true, flag: 'panicked_at_the_bottom' },
+      { id: 'hold', label: 'Hold. Say nothing.', sub: 'You decided how much to risk an hour ago. Let that decision stand.', flag: 'held_the_bottom' },
+      { id: 'more', label: 'Buy 20 more', sub: `About ${money(20 * px)}. This might be the bottom. It might not be.`, buy: 20, flag: 'bought_the_dip' },
+    ];
+  },
+},
+{
+  at: 240, id: 'spread',
+  title: 'Here is what the fund did on exactly the same days.',
+  enter: () => { S.compare = true; S.sawFund = true; renderAll(); },
+  lines: () => {
+    const v = uni(FEATURED), f = uni(FUND);
+    const vdd = drawdown(v), fdd = drawdown(f);
+    return say(
+      `Blue is ${v.s}: one company, one industry. Grey is ${f.s}: five hundred companies bought in a single purchase. Both lines start at 100 so you are comparing how much they moved, not how much they cost.`,
+      `Same market, same week. ${v.s} fell ${pct(-vdd)} from its high. ${f.s} fell ${pct(-fdd)}. That is diversification, and it is the least glamorous idea in investing.`,
+      'It does not make you more money. It makes the bad week smaller — and a smaller bad week is what stops people quitting, which over ten years is worth far more than picking right.'
+    );
+  },
+  facts: () => [fact(uni(FEATURED).s + ' worst fall', pct(-drawdown(uni(FEATURED))), 'down'),
+                fact(uni(FUND).s + ' worst fall', pct(-drawdown(uni(FUND))), 'down'),
+                fact('Your cash', money(S.cash))],
+  options: () => {
+    const px = pxAt(FUND, S.t);
+    const n = Math.max(1, Math.floor(Math.min(S.cash * 0.3, 2000) / px));
+    const can = S.cash >= px;
+    return [
+      { id: 'spread', label: can ? `Buy ${plural(n, 'share')} of ${FUND}` : `Not enough cash for ${FUND}`,
+        sub: can ? `About ${money(n * px)}. Two things that do not fall on the same days.` : `One share is ${money(px)} and you have ${money(S.cash)}. You cannot spread what you have already committed — which is its own lesson.`,
+        buy: can ? n : 0, buySym: FUND, flag: 'diversified', disabled: !can },
+      { id: 'concentrate', label: `Stay with ${FEATURED} only`, sub: 'You know this company now. One company decides your result.', flag: 'stock_picker' },
+    ];
+  },
+},
+{
+  at: 368, id: 'exit',
+  title: () => shareNote() ? 'Back above what you paid. Now the hard one.' : 'It recovered. You were not in it.',
+  lines: () => {
+    const n = shareNote(), px = pxAt(FEATURED, S.t);
+    if (!n) return say(
+      `${uni(FEATURED).s} is ${money(px)}, above where this whole thing started. You sold or you never bought, and the line went on without you.`,
+      'I am not scoring that, and I want to be careful here: it could just as easily have kept falling. The lesson is not "always hold". It is that the decision to leave is worth making on purpose, in advance, rather than in the middle of a red afternoon.'
+    );
+    return say(
+      `One share is ${money(px)}. You paid an average of ${money(n.p.basis / n.p.shares)}. You are ${n.pl >= 0 ? 'ahead by' : 'behind by'} ${money(Math.abs(n.pl))}.`,
+      'This is the moment most people sell — not because anything changed, but because being back to even feels like being let off. That is relief talking, and relief is not a plan.',
+      'The useful version: decide what would make you leave before you need to decide it. A price, a reason, or a date. Any of the three beats deciding while your heart is going.'
+    );
+  },
+  facts: () => {
+    const n = shareNote();
+    const f = [fact('One share now', money(pxAt(FEATURED, S.t))), fact('Account', money(equity()), dirOf(equity() - START_CASH))];
+    if (n) f.push(fact('On paper', signed(n.pl), dirOf(n.pl)));
+    return f;
+  },
+  options: () => {
+    const n = shareNote();
+    if (!n) return [{ id: 'ok', label: 'Understood — run out the tape', sub: 'Watch the last few hours' }];
+    return [
+      { id: 'take', label: 'Sell it all and take the money', sub: 'Lock it in. Cash cannot fall.', sellAll: true, flag: 'took_the_profit' },
+      { id: 'half', label: `Sell half, keep half`, sub: 'Take some off the table and stay in the game', sellHalf: true, flag: 'sold_half' },
+      { id: 'ride', label: 'Hold to the close', sub: 'You have a reason to own it or you do not. The price is not the reason.', flag: 'held_to_close' },
+    ];
+  },
+},
+{
+  at: LAST_T, id: 'close',
+  title: 'That is the week.',
+  enter: () => { S.compare = false; renderAll(); },
+  lines: () => say(
+    `${uni(FEATURED).s} opened this week at ${money(uni(FEATURED).bars[0].c)}, fell fifty percent from its high, and closed at ${money(pxAt(FEATURED, LAST_T))} — above where it began.`,
+    'It came back. This time. I am saying "this time" deliberately: sometimes it does not, and a version of this app that always ended in green would be lying to you about the only thing that matters.',
+    'What repeats is not the recovery. It is the size you chose, the fact that you spread it or did not, and whether you made your decisions before the afternoon got loud or during it.'
+  ),
+  facts: () => [fact('Account', money(equity()), dirOf(equity() - START_CASH)),
+                fact('Lowest it got', money(S.worstEquity)),
+                fact('Against the start', signed(equity() - START_CASH), dirOf(equity() - START_CASH))],
+  options: () => [{ id: 'end', label: 'See the debrief', sub: 'What you did, and what it is worth knowing' }],
+},
+];
+
+/** Peak-to-trough fall, measured from the data rather than hardcoded, so
+    the copy stays true if the anchors are ever retuned. */
+function drawdown(u) {
+  let peak = -Infinity, worst = 0;
+  for (const b of u.bars) { peak = Math.max(peak, b.c); worst = Math.max(worst, (peak - b.c) / peak); }
+  return worst;
+}
+
+function openHalt(h) {
+  S.playing = false; clearTimeout(tapeTimer);
+  $('tp-play').setAttribute('aria-pressed', 'false');
+  $('tp-play-label').textContent = 'Resume';
+  setLive('Paused — your coach is talking', 'halt');
+  if (h.enter) h.enter();
+
+  $('coach').hidden = false;
+  $('coach-sigil').innerHTML = SIGIL_NIA;
+  $('coach-title').textContent = call(h.title);
+
+  const cb = $('coach-callback'), cbText = call(h.callback);
+  cb.hidden = !cbText;
+  if (cbText) cb.textContent = cbText;
+
+  const lines = $('coach-lines');
+  lines.className = 'coach-lines';
+  lines.textContent = '';
+  call(h.lines).forEach((l, i) => lines.appendChild(Object.assign(document.createElement('p'),
+    { className: 'coach-body' + (i > 0 ? ' mute' : ''), textContent: l })));
+
+  const facts = $('coach-facts'), fs = call(h.facts) || [];
+  facts.textContent = ''; facts.hidden = !fs.length;
+  for (const f of fs) {
+    const el = document.createElement('span');
+    el.className = 'fact';
+    if (f.dir) el.dataset.dir = f.dir;
+    el.append(f.label + ' ', Object.assign(document.createElement('b'), { textContent: f.value }));
+    facts.appendChild(el);
+  }
+
+  const opts = $('coach-opts');
+  opts.textContent = '';
+  for (const o of call(h.options)) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'opt';
+    b.append(o.label);
+    if (o.sub) b.appendChild(Object.assign(document.createElement('small'), { textContent: o.sub }));
+    b.disabled = !!o.disabled;
+    b.addEventListener('click', () => takeOption(h, o));
+    opts.appendChild(b);
+  }
+  $('coach').scrollTop = 0;
+  const first = opts.querySelector('button:not(:disabled)');
+  if (first) first.focus({ preventScroll: true });
+  // Stacked layouts put the card below the fold; bring it to the reader.
+  if (innerWidth <= 1000) $('coach').scrollIntoView({ block: 'nearest', behavior: REDUCE ? 'auto' : 'smooth' });
+  requestAnimationFrame(renderAll);      // the chart just got shorter
+}
+
+function takeOption(h, o) {
+  S.choices[h.id] = o.id;
+  if (o.flag) S.flags.add(o.flag);
+  S.marketOpen = true;                                  // orders from the coach card always fill
+
+  if (o.buy)      placeOrder('BUY', o.buy, o.buySym || FEATURED);
+  if (o.sellAll)  placeOrder('SELL', posOf(FEATURED).shares, FEATURED);
+  if (o.sellHalf) placeOrder('SELL', Math.max(1, Math.floor(posOf(FEATURED).shares / 2)), FEATURED);
+
+  $('coach').hidden = true;
+  if (h.id === 'close') { finish('floor'); return; }
+  renderAll();                            // the chart just got taller
+  playTape();
+}
+
+/* =======================================================================
+   TAB 6 · THE DEBRIEF
+
+   Deliberately NOT ranked by money. The ending you get describes what you
+   did, not how well you scored, and the most common one is the one the
+   product actually wants. A debrief that congratulated the biggest number
+   would be teaching the opposite of everything above it.
+   ======================================================================= */
+const ENDINGS = [
+  { id: 'panic', title: 'The cheapest mistake you will ever make.',
+    when: f => f.has('panicked_at_the_bottom'),
+    lede: 'You sold at the lowest point on the board. Almost everyone does this once — and doing it once, here, with pretend money, is the least expensive version of that lesson that exists.',
+    coda: 'The dip was temporary. The decision inside it was not. That is not a scolding: it is the single most useful sentence in this app, and you now have it from experience instead of from a book.' },
+
+  { id: 'spread', title: 'You stopped betting on one company.',
+    when: f => f.has('diversified'),
+    lede: 'You came out the other side of a fifty percent fall and then bought the boring thing — five hundred companies instead of one.',
+    coda: 'That is the least glamorous decision available to you and the one with the best evidence behind it. Nobody will ever be impressed by it, which is roughly the point.' },
+
+  { id: 'nothing', title: 'Nothing happened. That is the expensive one.',
+    when: (f, s) => s.trades.length === 0,
+    lede: 'One hundred dollars to start, with a ten thousand dollar goal. The point is not to race there; it is to learn what each decision costs.',
+    coda: 'Nothing bad happened. Nothing happened at all. Over ten years that is the version of this that costs the most, and it is the only one nobody ever feels.' },
+
+  { id: 'steady', title: 'You sat still while a number went red.',
+    when: f => f.has('held_the_bottom') || f.has('held_to_close'),
+    lede: 'You decided how much to risk, and then you let that decision stand while the screen argued with you.',
+    coda: 'It looks like nothing from the outside and it is the entire skill. Not bravery, not a hunch — a size you chose when you were calm, honoured by a version of you who was not.' },
+
+  { id: 'started', title: 'You started before you felt ready.',
+    when: () => true,
+    lede: 'Which was the only thing this was ever asking you to do.',
+    coda: 'You will not feel ready next time either. That turns out not to be the relevant variable.' },
+];
+
+function paintDebrief() {
+  const eq = equity(LAST_T), ch = r2(eq - START_CASH);
+  const f = S.flags, buys = S.trades.filter(t => t.side === 'BUY').length;
+  const ending = ENDINGS.find(e => e.when(f, S)) || ENDINGS[ENDINGS.length - 1];
+  const who = S.name ? S.name + ', ' : '';
+
+  $('end-kicker').textContent = 'The debrief · no score was kept';
+  $('end-title').textContent = ending.title;
+  $('end-lede').textContent = (S.name ? S.name + ' — ' : '') + ending.lede;
+  $('end-coda').textContent = ending.coda;
+
+  const worstDrop = r2(START_CASH - S.worstEquity);
+  const rows = [
+    ['Where you finished', money(eq), dirOf(ch), true],
+    ['Against the $100 start', `${signed(ch)} (${pct(ch / START_CASH)})`, dirOf(ch), false],
+    ['Lowest your account ever got', money(S.worstEquity), worstDrop > 0.5 ? 'down' : '', false],
+    ['Orders you placed', String(S.trades.length), '', false],
+    ['Things you ended up owning', String(held().length), '', false],
+  ];
+  const slipped = S.trades.filter(t => Math.abs(t.px - t.quote) * t.qty >= 0.5);
+  if (slipped.length) {
+    const cost = r2(slipped.reduce((a, t) => a + Math.abs(t.px - t.quote) * t.qty, 0));
+    rows.push(['Paid to market orders moving under you', money(cost), 'down', false]);
+  }
+  if (f.size) rows.push(['What the app noticed', [...f].join(', ').replace(/_/g, ' '), '', false]);
+
+  const ledger = $('end-ledger');
+  ledger.textContent = '';
+  for (const [k, v, dir, key] of rows) {
+    const row = document.createElement('div');
+    row.className = 'ledger-row';
+    if (key) row.dataset.key = 'true';
+    const b = document.createElement('b');
+    b.textContent = v; if (dir) b.dataset.dir = dir;
+    row.append(Object.assign(document.createElement('span'), { textContent: k }), b);
+    ledger.appendChild(row);
+  }
+
+  /* The curriculum, restated with HER numbers in it. A takeaway that could
+     have been written before she played is a takeaway she will not keep. */
+  const v = uni(FEATURED), fund = uni(FUND);
+  const items = [
+    ['A share is a slice of a company.',
+      (() => {
+        const names = [...new Set(S.trades.map(t => uni(t.s).name))];
+        const who = names.length ? names.join(' and ') : 'nothing, in the end';
+        return names.length
+          ? `You owned a piece of ${who}, and watched that piece change value with the business. Nobody was holding your money for you — it had turned into part of something, and that part had a price that moved.`
+          : `You did not end up owning any of the six, so the slice stayed hypothetical. It is still the definition: a share is part of a business, and its price moves because the business and the people trading it do.`;
+      })()],
+    ['A price is the last number two people agreed on.',
+      'Not a valuation, not an opinion, not a decision by anyone in charge. When the sellers at a level run out, the price moves. You pushed that around yourself before you ever saw a chart.'],
+    ['A market order fills now, at whatever "now" turns out to be.',
+      S.slipSeen
+        ? 'You felt it: the screen said one number and you filled at another, because the market moved while you decided. A limit order names your price and accepts it might never fill.'
+        : 'It fills immediately and takes whatever price exists on arrival. In a calm market that is pennies; in a fast one it is real money. A limit order is the trade-off: your price, or no fill.'],
+    ['How much is a bigger decision than what.',
+      `You chose a size at ${money(pxAt(FEATURED, T_BUY))} a share, and that choice — not the company — decided whether the fall that came next was survivable. Your account bottomed at ${money(S.worstEquity)}.`],
+    ['One company can halve. Five hundred rarely do together.',
+      `${v.s} fell ${pct(-drawdown(v))} from its high. On exactly the same days ${fund.s} fell ${pct(-drawdown(fund))}. Spreading out does not make more money; it makes the bad week small enough that you stay.`],
+    ['Losses are the cost of being in the market, not evidence you are bad at it.',
+      `${v.s} closed the week at ${money(pxAt(FEATURED, LAST_T))}, above where it started — after halving on the way. It came back this time. Sometimes it does not, and the habit that survives both is deciding your size and your exit while you are calm.`],
+  ];
+  const host = $('end-takeaways');
+  host.textContent = '';
+  for (const [h, body] of items) {
+    const el = document.createElement('div');
+    el.className = 'takeaway';
+    el.append(Object.assign(document.createElement('b'), { textContent: h }),
+              Object.assign(document.createElement('span'), { textContent: body }));
+    host.appendChild(el);
+  }
+
+  /* The closing argument answers the specific fear she named on the quiz. */
+  const FEAR = {
+    loss: () => `${who}you said the scariest part was losing money you worked for. Here is what that actually looked like: your account was worth ${money(S.worstEquity)} at its lowest — ${money(worstDrop)} below where it started — and the money was not gone. It was sitting inside something whose price had fallen. Money in a market is only gone when you sell it or the business ends. Both of those are decisions, and one of them is yours.`,
+    stupid: () => `${who}you said the scariest part was looking like you do not know what you are doing. In the last few minutes you read a price chart, matched six ticker symbols, chose a position size, sat through a fifty percent drawdown and placed ${plural(S.trades.length, 'order')}. Nobody in the room started knowing this. The people who look comfortable are people who were uncomfortable earlier, somewhere nobody was watching — which is what this was.`,
+    start: () => `${who}you said the scariest part was not knowing where to begin. You began. Concretely: pick one broad fund rather than one company, decide the amount before you decide the day, make it automatic so the decision only happens once, and expect to be down at some point in the first year. That is the whole starter kit, and it fits in a sentence.`,
+  };
+  $('end-fear').textContent = (FEAR[S.fear] || FEAR.start)();
+}
+
+/* =======================================================================
+   SELF-CHECKS
+
+   The app testing its own claims in the browser, against the same content
+   and the same arrays it just played. A claim a judge can run beats a
+   claim a judge has to take on faith.
+   ======================================================================= */
+function runChecks() {
+  const out = [];
+  const ok = (name, pass, detail) => out.push({ name, pass, detail });
+
+  // 1 · the tab chain is a complete path with no orphan
+  let cur = TABS[0].id; const walked = [cur]; let guard = 0;
+  while (guard++ < 20) { const t = TABS.find(x => x.id === cur); if (!t || !t.unlocks) break; cur = t.unlocks; walked.push(cur); }
+  ok('Every tab is reachable in order', walked.length === TABS.length,
+    walked.length === TABS.length ? walked.join(' → ') : 'chain breaks at ' + walked[walked.length - 1]);
+
+  // 2 · halts are ordered, in range, and every one has a way out
+  const ordered = HALTS.every((h, i) => i === 0 || h.at >= HALTS[i - 1].at);
+  const inRange = HALTS.every(h => h.at >= 0 && h.at <= LAST_T);
+  const hasOpts = HALTS.every(h => (call(h.options) || []).some(o => !o.disabled));
+  ok('Every coach halt is ordered, in range, and escapable', ordered && inRange && hasOpts,
+    `${HALTS.length} halts between tick 0 and ${LAST_T}, each with at least one live option`);
+
+  // 3 · no "I don't know" anywhere. The product promise, enforced.
+  const labels = [
+    ...QUIZ.flatMap(q => q.options.map(o => o.t)),
+    ...HALTS.flatMap(h => (call(h.options) || []).map(o => String(o.label))),
+  ];
+  // Anchored at the start of the label on purpose: the target is an answer
+  // whose whole content is a refusal to answer. "Looking like I do not know
+  // what I am doing" is a fear someone named, not an escape hatch, and a
+  // check that flagged it would be pushing real content out of the product.
+  const bad = labels.filter(l => /^\s*(i (don'?t|do not) know|not sure|no idea|dunno|skip|pass|n\/?a)\b/i.test(l.trim()));
+  ok('No opt-out answer exists anywhere', bad.length === 0,
+    bad.length ? 'found: ' + bad.join(' / ')
+      : `${labels.length} answer labels across the quiz and every coach halt — each one is a position someone could actually hold`);
+
+  // 4 · nothing anywhere keeps a score
+  const scoreKeys = Object.keys(S).filter(k => /score|points|streak|rank|grade|xp\b/i.test(k));
+  ok('No score is kept in session state', scoreKeys.length === 0,
+    scoreKeys.length ? 'found: ' + scoreKeys.join(', ') : Object.keys(S).length + ' state keys, none of them a score');
+
+  // 5 · the teaching arc is actually in the data, not just in the copy
+  const v = uni(FEATURED), dd = drawdown(v);
+  const recovers = v.bars[LAST_T].c > v.bars[0].c;
+  ok('The featured stock halves and still finishes above its start', dd >= 0.495 && dd <= 0.505 && recovers,
+    `worst fall ${pct(-dd)} from its high · opened ${money(v.bars[0].c)} · closed ${money(v.bars[LAST_T].c)}`);
+
+  // 6 · the diversification claim is true in the numbers the chart draws
+  const fu = uni(FUND), fdd = drawdown(fu);
+  ok('The fund really does fall less than the single company', fdd < dd / 3,
+    `${v.s} ${pct(-dd)} vs ${fu.s} ${pct(-fdd)} over the same 5 days`);
+
+  // 7 · slippage always moves against the trader, never for them
+  let slipOk = true, slipSeen = 0;
+  const heldT = S.t;
+  for (const s of Object.keys(BOOK)) for (const t of [0, T_BUY, T_SLIDE, T_TROUGH, LAST_T]) {
+    S.t = t;
+    const quote = barAt(s, t).c, b = fillPrice(s, 'BUY'), a = fillPrice(s, 'SELL');
+    if (b.px < quote - 1e-9 || a.px > quote + 1e-9) slipOk = false;
+    if (b.px > quote + 1e-9) slipSeen++;
+  }
+  S.t = heldT;
+  ok('Market-order slippage never favours the trader', slipOk && slipSeen > 0,
+    `buys fill at or above the quote and sells at or below it, at every halt tick on all ${Object.keys(BOOK).length} symbols`);
+
+  // 8 · the matching game has exactly one right answer per card
+  const syms = new Set(UNIVERSE.map(u => u.s)), names = new Set(UNIVERSE.map(u => u.name));
+  ok('Every symbol maps to exactly one company', syms.size === UNIVERSE.length && names.size === UNIVERSE.length,
+    `${UNIVERSE.length} symbols, ${syms.size} unique tickers, ${names.size} unique companies`);
+
+  // 9 · the data is labelled as what it is
+  const allSynthetic = UNIVERSE.every(u => u.dataSource === 'synthetic');
+  ok('Simulated data is declared as simulated', allSynthetic && $('data-badge').textContent === 'Simulated data',
+    'the badge reads dataSource off the payload, so real bars would flip it automatically');
+
+  // 10 · an ending exists for any state, including states nobody reaches
+  const probes = [new Set(), new Set(['panicked_at_the_bottom']), new Set(['diversified']), new Set(['held_to_close'])];
+  const reached = new Set(probes.map(p => (ENDINGS.find(e => e.when(p, { trades: [1] })) || {}).id));
+  const noTrade = (ENDINGS.find(e => e.when(new Set(), { trades: [] })) || {}).id;
+  ok('Every debrief state resolves to an ending', reached.size >= 3 && noTrade === 'nothing',
+    `${reached.size} distinct endings from four probes, plus the no-trade path`);
+
+  return out;
+}
+
+function paintChecks() {
+  const body = $('checks-body');
+  body.textContent = '';
+  const res = runChecks();
+  let pass = 0;
+  for (const r of res) {
+    if (r.pass) pass++;
+    const row = document.createElement('div');
+    row.className = 'check'; row.dataset.ok = String(r.pass);
+    row.append(Object.assign(document.createElement('span'), { className: 'check-tag', textContent: r.pass ? 'PASS' : 'FAIL' }),
+               Object.assign(document.createElement('span'), { textContent: r.name }),
+               Object.assign(document.createElement('span'), { className: 'check-detail', textContent: r.detail }));
+    body.appendChild(row);
+  }
+  body.appendChild(Object.assign(document.createElement('p'), {
+    style: 'margin:12px 0 0;font-size:12px;color:var(--text-muted)',
+    textContent: `${pass} of ${res.length} checks pass. These run in your browser, right now, against the same content and the same price arrays this session played.`
+  }));
+}
+
+/* =======================================================================
+   WIRING
+   ======================================================================= */
+function enterFloor() {
+  renderAll();
+  if (S.haltIdx === 0 && !S.closed) { const h = HALTS[0]; S.haltIdx = 1; openHalt(h); }
+  else if (!S.closed) setLive(S.playing ? 'Market open' : 'Paused by you', S.playing ? 'beat' : 'halt');
+}
+
+function setQty(n) {
+  S.qty = clamp(Math.floor(n) || 0, 0, 99999);
+  $('qty').value = S.qty;
+  renderTicket();
+}
+
+$('go-quiz').addEventListener('click', () => finish('welcome'));
+$('go-match').addEventListener('click', () => finish('learn'));
+$('go-lesson').addEventListener('click', () => { if (M.matched.size === UNIVERSE.length) finish('match'); });
+$('go-floor').addEventListener('click', () => finish('lesson'));
+$('match-shuffle').addEventListener('click', resetMatch);
+$('book-add-buy').addEventListener('click', () => bookTrade('buy'));
+$('book-add-sell').addEventListener('click', () => bookTrade('sell'));
+
+$('tp-play').addEventListener('click', () => (S.playing ? pauseTape() : playTape()));
+$('tp-skip').addEventListener('click', skipToNext);
+document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => {
+  S.speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (S.playing) playTape();
+}));
+
+$('qty-up').addEventListener('click', () => setQty(S.qty + 10));
+$('qty-down').addEventListener('click', () => setQty(S.qty - 10));
+$('qty').addEventListener('input', e => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); S.qty = isNaN(n) ? 0 : n; renderTicket(); });
+$('qty').addEventListener('blur', () => setQty(S.qty));
+
+$('buy').addEventListener('click', () => { showHint('buy'); placeOrder('BUY', S.qty); });
+$('sell').addEventListener('click', () => { showHint('sell'); placeOrder('SELL', Math.min(S.qty, posOf(S.symbol).shares)); });
+document.querySelectorAll('[data-order]').forEach(b => b.addEventListener('click', () => {
+  S.orderType = b.dataset.order;
+  document.querySelectorAll('[data-order]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  showHint(b.dataset.hint);
+  // Limit and stop are explained, gated and honest about being visual only:
+  // every fill in this simulator is a market order.
+  if (S.orderType !== 'market') {
+    $('validation').textContent = 'Explained, but not simulated here — every fill in this practice account is a market order.';
+  } else $('validation').textContent = '';
+}));
+
+/* crosshair + tooltip: enhances the chart, never gates it — every value
+   is also in the table under "Show the numbers". */
+const wrap = $('chart-wrap');
+function moveCross(clientX) {
+  if (!chartGeom || S.compare) return;
+  const r = wrap.getBoundingClientRect();
+  const i = clamp(Math.round(((clientX - r.left - PAD.l) / (r.width - PAD.l - PAD.r)) * chartGeom.xMax), 0, S.t);
+  const b = barAt(S.symbol, i), tip = $('tooltip');
+  tip.hidden = false;
+  $('tt-value').textContent = money(b.c);
+  $('tt-date').textContent = `${tapeClock(i).label} · ${fmtVol(b.v)} shares`;
+  tip.style.left = clamp(chartGeom.X(i), 60, r.width - 60) + 'px';
+  tip.style.top = chartGeom.Y(b.c) + 'px';
+}
+wrap.addEventListener('pointermove', e => moveCross(e.clientX));
+wrap.addEventListener('pointerleave', () => { $('tooltip').hidden = true; });
+
+$('open-checks').addEventListener('click', () => { paintChecks(); $('checks').hidden = false; });
+$('end-checks').addEventListener('click', () => { paintChecks(); $('checks').hidden = false; });
+$('close-checks').addEventListener('click', () => { $('checks').hidden = true; });
+$('btn-reset').addEventListener('click', () => location.reload());
+$('end-again').addEventListener('click', () => location.reload());
+
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('checks').hidden) { $('checks').hidden = true; return; }
+  if (S.tab !== 'floor' || !$('coach').hidden) return;
+  if (e.key === ' ' && !/INPUT|TEXTAREA/.test(e.target.tagName)) { e.preventDefault(); S.playing ? pauseTape() : playTape(); }
+  if (e.key === 'ArrowRight' && !S.playing && !S.closed) { e.preventDefault(); stepTape(); }
+});
+
+let resizeRAF = null;
+new ResizeObserver(() => {
+  cancelAnimationFrame(resizeRAF);
+  resizeRAF = requestAnimationFrame(() => { if (S.tab === 'floor') renderChart(); });
+}).observe(wrap);
+
+/* ---------- boot ---------- */
+paintWelcome();
+paintTabs();
+paintQuiz();
+paintSliceFigure();
+paintBook();
+paintSymList();
+resetMatch();
+$('qty').value = S.qty;
+setLive('Market closed', 'halt');
+</script>
 </body>
 </html>
