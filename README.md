@@ -139,9 +139,14 @@ If a test complains about your sentence, it's doing its job — fix the sentence
 
 ## Before you demo
 
-1. **Hit "Reset demo"** between participants — don't just refresh the page. A refresh replays the previous session's saved log, so you'll see stale data.
-2. Run on **localhost with Wi-Fi off**. Never present from a hosted URL — venue Wi-Fi is not something to bet a demo on.
-3. The server holds **one global session** — meaning only one person can use it at a time.
+1. **Clear the browser cache once** before the first run. `web/` is served with caching off now, but a browser that loaded this app earlier may still hold old JavaScript and will show stale text with no error explaining why. Ctrl+Shift+Delete, or use a fresh browser profile. Once is enough.
+2. **Keep only one tab open.** Tabs share `localStorage`, so a second tab can replay the first tab's saved session and switch symbols underneath you mid-demo.
+3. **Don't run `python dev.py check` just before presenting.** The browser test takes over port 8000 and shuts down your demo server.
+4. **Hit "Reset demo"** between participants — don't just refresh the page. A refresh replays the previous session's saved log, so you'll see stale data.
+5. Run on **localhost with Wi-Fi off**. Never present from a hosted URL — venue Wi-Fi is not something to bet a demo on.
+6. The server holds **one global session** — meaning only one person can use it at a time.
+
+The guided walk-through is **NVX** ($100) and it's pre-selected, so Start goes straight there. **HLX** ($10,000) is the tier demo — the safety net, the three tiers, the deeper drop.
 
 ---
 
