@@ -1,0 +1,2044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rich-HER — Vela's Wager</title>
+<style>
+/* =======================================================================
+   TOKENS — the same set the trading screen uses, inlined.
+
+   Inlined on purpose: this file has to open by double-click with no server,
+   so it cannot depend on a sibling stylesheet resolving. Keep in step with
+   web/tokens.css if that file changes.
+
+   Data colors are blue/red, NOT green/red. Green-vs-red is the textbook
+   red-green colorblindness failure. Validated against the pane (#0E1117):
+   worst pair CVD dE 19.2 protan / 31.4 tritan, normal vision 29.0, both
+   >= 3:1 contrast. Gold is chrome only and never encodes a value.
+   ======================================================================= */
+:root {
+  --bg:#0A0C12; --pane:#0E1117; --panel:#11141C; --raised:#171B25;
+  --line:#232838; --line-soft:#1A1E29;
+  --text:#EAECF2; --text-2:#9AA1B4; --text-3:#7C8496;
+  --gold:#D4AF6E; --gold-dim:rgba(212,175,110,.13);
+
+  --up:#3987E5; --down:#E66767;
+  --up-wash:rgba(57,135,229,.13); --down-wash:rgba(230,103,103,.13);
+
+  /* Vela reads cold. A character tint, never a data color. */
+  --vela:#B9C6E8; --vela-dim:rgba(185,198,232,.11);
+
+  --grid:rgba(234,236,242,.055); --axis:rgba(234,236,242,.14);
+  --r:10px; --r-sm:6px; --tap:44px;
+}
+* { box-sizing:border-box; }
+html, body { height:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:14px;
+  -webkit-text-size-adjust:100%; overflow:hidden;
+}
+button, input { font-family:inherit; }
+:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+[hidden] { display:none !important; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+.wordmark { font-size:20px; font-weight:650; letter-spacing:-.01em; margin:0; }
+.wordmark em { font-style:normal; color:var(--gold); }
+
+/* =======================================================================
+   PROLOGUE — statistic, experience, name, then Vela.
+   The statistic leads. Someone who has just read that hesitation is the
+   barrier answers the next question differently than someone who was
+   asked for their name first.
+   ======================================================================= */
+.screen {
+  position:fixed; inset:0; z-index:50; background:var(--bg);
+  display:grid; place-items:center; padding:28px 22px; overflow-y:auto;
+}
+.screen-inner { width:100%; max-width:480px; }
+
+.stat-figure {
+  font-size:clamp(56px,13vw,104px); font-weight:660; letter-spacing:-.04em;
+  line-height:.95; margin:0 0 14px; color:var(--gold);
+}
+.stat-claim { font-size:clamp(17px,3.4vw,22px); line-height:1.4; margin:0 0 14px; font-weight:500; }
+.stat-source { font-size:11.5px; color:var(--text-3); margin:0 0 30px; line-height:1.5; }
+.stat-source.unset { color:var(--down); }
+.stat-turn { font-size:14px; color:var(--text-2); line-height:1.6; margin:0 0 26px; }
+
+.q { font-size:21px; font-weight:600; line-height:1.3; margin:0 0 6px; }
+.q-sub { font-size:13.5px; color:var(--text-2); margin:0 0 20px; line-height:1.55; }
+
+.choice {
+  display:block; width:100%; text-align:left; background:var(--raised); color:var(--text);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+  padding:13px 15px; margin-bottom:8px; font-size:14px; line-height:1.45;
+  cursor:pointer; min-height:var(--tap);
+}
+.choice:hover:not(:disabled) { border-color:var(--text-3); background:#1B2030; }
+.choice strong { display:block; font-weight:620; margin-bottom:2px; }
+.choice span { color:var(--text-3); font-size:12.5px; }
+
+.field { display:block; margin-bottom:18px; }
+.field-label { display:block; font-size:12px; color:var(--text-2); margin-bottom:6px; }
+.field input {
+  width:100%; height:var(--tap); padding:0 13px; font-size:15px;
+  background:var(--raised); color:var(--text);
+  border:1px solid var(--line); border-radius:var(--r-sm);
+}
+.avatars { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:22px; }
+.avatars button {
+  aspect-ratio:1; display:grid; place-items:center; cursor:pointer;
+  background:var(--raised); border:1px solid var(--line); border-radius:var(--r-sm);
+  color:var(--text-3); padding:0;
+}
+.avatars button:hover { color:var(--text-2); }
+.avatars button[aria-pressed="true"] { border-color:var(--gold); color:var(--gold); background:var(--gold-dim); }
+
+.btn {
+  min-height:48px; padding:0 24px; border-radius:var(--r-sm); cursor:pointer;
+  font-size:15px; font-weight:640; border:1px solid var(--gold);
+  background:var(--gold); color:#17120A;
+}
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-ghost { background:none; color:var(--text-2); border-color:var(--line); }
+.btn-ghost:hover { color:var(--text); }
+.fine { font-size:11.5px; color:var(--text-3); line-height:1.55; margin:20px 0 0; }
+
+/* =======================================================================
+   STAGE — media slot / chart on top, dialogue beneath
+   ======================================================================= */
+.stage {
+  display:grid; grid-template-rows:auto minmax(0,1fr) auto;
+  height:100dvh; max-width:1080px; margin:0 auto;
+}
+
+.topbar {
+  display:flex; align-items:center; gap:10px; padding:9px 16px;
+  border-bottom:1px solid var(--line); background:var(--panel);
+}
+.chapter-tag {
+  font-size:10.5px; font-weight:650; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--text-3); white-space:nowrap;
+}
+.beads { display:flex; gap:4px; margin-left:4px; }
+.bead { width:20px; height:3px; border-radius:2px; background:var(--line); }
+.bead.seen { background:var(--text-3); }
+.bead.now  { background:var(--gold); }
+.topbar-spacer { flex:1; }
+.badge {
+  display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 9px;
+  border:1px solid rgba(212,175,110,.3); border-radius:999px;
+  font-size:10px; font-weight:650; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--gold); white-space:nowrap;
+}
+.badge-dot { width:5px; height:5px; border-radius:50%; background:var(--gold); }
+.link-btn {
+  background:none; border:none; color:var(--text-3); font-size:11.5px;
+  cursor:pointer; padding:6px 4px; text-decoration:underline; text-underline-offset:3px;
+}
+.link-btn:hover { color:var(--text); }
+
+.viewport { position:relative; min-height:0; background:var(--pane); overflow:hidden; }
+
+/* ---- the chart. Same marks and chrome as the trading screen. ---- */
+#chart { display:block; width:100%; height:100%; }
+#chart text { font-size:10.5px; fill:var(--text-3); font-variant-numeric:tabular-nums; }
+.grid-line { stroke:var(--grid); stroke-width:1; }
+.axis-line { stroke:var(--axis); stroke-width:1; }
+.price-line { fill:none; stroke:var(--up); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.price-area { fill:var(--up-wash); }
+.price-line.second { stroke:var(--text-2); stroke-width:1.6; }
+.cross-dot { fill:var(--up); stroke:var(--pane); stroke-width:2; }
+/* Annotations wear text tokens — they are not a series. */
+.entry-line { stroke:var(--text-2); stroke-width:1; opacity:.55; }
+.anno {
+  fill:var(--text); font-size:11px; font-weight:600;
+  paint-order:stroke; stroke:var(--pane); stroke-width:4px; stroke-linejoin:round;
+}
+.anno.dim { fill:var(--text-2); font-weight:400; }
+.last-tag rect { fill:var(--raised); stroke:var(--axis); }
+.last-tag text { fill:var(--text); font-weight:600; font-size:10.5px; }
+.trough-mark { stroke:var(--down); stroke-width:1; opacity:.6; }
+
+/* ---- media slots. The engine only knows the slot NAME. ---- */
+.media { position:absolute; inset:0; display:grid; place-items:center; background:var(--pane); }
+.media-empty {
+  font-size:11px; color:var(--text-3); letter-spacing:.08em; text-transform:uppercase;
+  border:1px dashed var(--line); border-radius:var(--r); padding:22px 26px; text-align:center;
+}
+.media-empty b { display:block; color:var(--text-2); font-size:13px; letter-spacing:0;
+  text-transform:none; margin-top:6px; font-weight:500; }
+.media svg { width:min(100%,560px); height:100%; max-height:340px; }
+
+.drawIn { stroke-dasharray:1200; stroke-dashoffset:1200; animation:draw 2.2s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset:0; } }
+.fadeIn  { opacity:0; animation:fade .9s ease-out .6s forwards; }
+.fadeIn2 { opacity:0; animation:fade .9s ease-out 1.4s forwards; }
+@keyframes fade { to { opacity:1; } }
+.spin { transform-origin:center; animation:spin 9s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.pulse { animation:pulse 2.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity:.25; } 50% { opacity:.85; } }
+.rise { animation:rise 1.4s cubic-bezier(.22,.9,.3,1) forwards; }
+@keyframes rise { from { transform:translateY(16px); opacity:0; } to { transform:none; opacity:1; } }
+
+/* ---- the wager meter: where she stands against Vela's two lines ---- */
+.wager { padding:9px 16px 11px; border-top:1px solid var(--line); background:var(--panel); }
+.wager-head {
+  display:flex; align-items:baseline; gap:10px; margin-bottom:7px;
+  font-size:11px; color:var(--text-3);
+}
+.wager-equity {
+  font-size:18px; font-weight:650; color:var(--text); letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums;
+}
+.wager-verdict { margin-left:auto; font-weight:650; font-size:11.5px; }
+.wager-verdict[data-v="wish"] { color:var(--up); }
+.wager-verdict[data-v="bust"] { color:var(--down); }
+.wager-verdict[data-v="open"] { color:var(--text-2); }
+.track { position:relative; height:36px; }
+.track-rail {
+  position:absolute; left:0; right:0; top:24px; height:4px;
+  border-radius:2px; background:var(--line);
+}
+.track-fill { position:absolute; top:24px; height:4px; border-radius:2px; background:var(--text-3); }
+.gate { position:absolute; top:17px; width:2px; height:18px; border-radius:1px; }
+.gate-bust { background:var(--down); }
+.gate-wish { background:var(--up); }
+.gate-label {
+  position:absolute; top:2px; font-size:9.5px; font-weight:650;
+  letter-spacing:.04em; white-space:nowrap; transform:translateX(-50%);
+}
+.marker {
+  position:absolute; top:19px; width:14px; height:14px; border-radius:50%;
+  background:var(--text); border:2px solid var(--panel); transform:translateX(-50%);
+  transition:left .5s cubic-bezier(.22,.9,.3,1);
+}
+/* Where she stood at the worst moment. Vela judges on this, not on today. */
+.ghost {
+  position:absolute; top:22px; width:8px; height:8px; border-radius:50%;
+  background:none; border:1.5px solid var(--text-3); transform:translateX(-50%);
+}
+.wager-note { font-size:11px; color:var(--text-3); margin:6px 0 0; line-height:1.5; }
+
+/* =======================================================================
+   DIALOGUE
+   ======================================================================= */
+.talk {
+  border-top:1px solid var(--line); background:var(--panel);
+  padding:13px 16px 16px; display:grid; gap:11px;
+  max-height:46dvh; overflow-y:auto;
+}
+.who { display:flex; align-items:center; gap:9px; }
+.who-sigil { width:30px; height:30px; flex:none; }
+.who-name { font-size:13px; font-weight:650; letter-spacing:.01em; }
+.who-role { font-size:11px; color:var(--text-3); }
+[data-speaker="vela"] .who-name { color:var(--vela); }
+[data-speaker="coach"] .who-name { color:var(--gold); }
+[data-speaker="narrator"] .who-name { color:var(--text-2); }
+
+.lines { margin:0; display:grid; gap:8px; }
+.lines p { margin:0; font-size:15.5px; line-height:1.55; }
+.lines p.pending { opacity:.3; }
+.aside {
+  margin:0; font-size:13.5px; line-height:1.55; color:var(--text-2);
+  padding-left:11px; border-left:2px solid var(--line);
+}
+.facts {
+  display:flex; flex-wrap:wrap; gap:6px; margin:0;
+}
+.fact {
+  font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--text-2);
+  background:var(--raised); border:1px solid var(--line); border-radius:999px; padding:4px 10px;
+}
+.fact b { color:var(--text); font-weight:620; }
+.fact[data-dir="up"] b { color:var(--up); }
+.fact[data-dir="down"] b { color:var(--down); }
+
+.actions { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+.opt {
+  flex:1 1 210px; text-align:left; min-height:var(--tap);
+  background:var(--raised); color:var(--text); border:1px solid var(--line);
+  border-radius:var(--r-sm); padding:11px 14px; font-size:14px; line-height:1.4; cursor:pointer;
+}
+.opt:hover:not(:disabled) { border-color:var(--text-3); background:#1B2030; }
+.opt:disabled { opacity:.45; cursor:not-allowed; }
+.opt small { display:block; color:var(--text-3); font-size:11.5px; margin-top:3px; }
+
+/* ---- the sizing control: how much of your $100 ---- */
+.sizer { display:grid; gap:9px; }
+.sizer-row { display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
+.stepper { display:flex; gap:2px; }
+.stepper button {
+  width:var(--tap); height:var(--tap); font-size:19px;
+  background:var(--raised); color:var(--text); border:1px solid var(--line); cursor:pointer;
+}
+.stepper button:first-child { border-radius:var(--r-sm) 2px 2px var(--r-sm); }
+.stepper button:last-child  { border-radius:2px var(--r-sm) var(--r-sm) 2px; }
+.stepper output {
+  width:62px; height:var(--tap); display:grid; place-items:center;
+  font-size:17px; font-weight:620; font-variant-numeric:tabular-nums;
+  background:var(--raised); border:1px solid var(--line);
+}
+.sizer-read { font-size:13px; color:var(--text-2); line-height:1.5; }
+.sizer-read b { color:var(--text); font-weight:620; font-variant-numeric:tabular-nums; }
+.sizer-warn { font-size:12px; color:var(--gold); margin:0; }
+
+/* =======================================================================
+   ENDING
+   ======================================================================= */
+.ending-title {
+  font-size:clamp(28px,6vw,44px); font-weight:660; letter-spacing:-.025em;
+  line-height:1.05; margin:0 0 4px;
+}
+.ending-kicker {
+  font-size:11px; font-weight:650; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--text-3); margin:0 0 12px;
+}
+.ledger {
+  display:grid; gap:2px; margin:20px 0; border-radius:var(--r-sm); overflow:hidden;
+}
+.ledger-row {
+  display:flex; justify-content:space-between; gap:14px;
+  background:var(--raised); padding:10px 13px; font-size:13px;
+}
+.ledger-row b { font-variant-numeric:tabular-nums; font-weight:620; }
+.ledger-row[data-key="true"] { background:var(--gold-dim); }
+.coda {
+  font-size:14px; line-height:1.6; color:var(--text-2);
+  border-left:2px solid var(--gold); padding-left:13px; margin:18px 0 26px;
+}
+
+/* =======================================================================
+   CONTENT CHECKS — the story validates itself in the browser.
+   Mirrors server/tests/test_story.py so a writer can edit content and see
+   immediately whether they broke reachability.
+   ======================================================================= */
+#checks {
+  position:fixed; inset:auto 0 0 0; z-index:60; max-height:72dvh; overflow-y:auto;
+  background:var(--panel); border-top:1px solid var(--line); padding:14px 18px 20px;
+}
+.checks-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.checks-title { font-size:12px; font-weight:650; letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); margin:0; }
+.check {
+  display:flex; gap:10px; align-items:baseline; padding:6px 0;
+  border-top:1px solid var(--line-soft); font-size:12.5px; line-height:1.45;
+}
+.check-tag { flex:none; font-size:10px; font-weight:700; letter-spacing:.06em; width:42px; }
+.check[data-ok="true"]  .check-tag { color:var(--up); }
+.check[data-ok="false"] .check-tag { color:var(--down); }
+.check-detail { color:var(--text-3); }
+
+@media (max-width:620px) {
+  .talk { max-height:52dvh; }
+  .opt { flex:1 1 100%; }
+  .avatars { grid-template-columns:repeat(3,1fr); }
+}
+@media (prefers-reduced-motion:reduce) {
+  *, *::before, *::after { animation:none !important; transition:none !important; }
+  .drawIn { stroke-dashoffset:0; }
+  .fadeIn, .fadeIn2 { opacity:1; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===================================================================
+     PROLOGUE screen 1 · the statistic
+     Leads the whole experience. It does the work of "this is for you,
+     and here is why you were held back" BEFORE asking for anything.
+     =================================================================== -->
+<div class="screen" id="s-stat">
+  <div class="screen-inner">
+    <h1 class="wordmark" style="margin-bottom:34px">Rich<em>-HER</em></h1>
+    <p class="stat-figure" id="stat-figure">—</p>
+    <p class="stat-claim" id="stat-claim">—</p>
+    <p class="stat-source" id="stat-source">—</p>
+    <p class="stat-turn">
+      It is not a knowledge gap. Women who do invest perform about as well as
+      anyone else. What stops people is the part before the first trade: not
+      wanting to be wrong with real money.
+    </p>
+    <button class="btn" id="stat-next">So let's be wrong with pretend money</button>
+  </div>
+</div>
+
+<!-- PROLOGUE screen 2 · experience. Sets tone, never restricts content. -->
+<div class="screen" id="s-exp" hidden>
+  <div class="screen-inner">
+    <h2 class="q">Have you bought a share before?</h2>
+    <p class="q-sub">This only changes how much Nia explains. Nothing is hidden from you either way.</p>
+    <button class="choice" data-exp="new">
+      <strong>No, never</strong><span>Explain everything the first time it comes up</span></button>
+    <button class="choice" data-exp="some">
+      <strong>A little</strong><span>Skip the basics, keep the reasoning</span></button>
+    <button class="choice" data-exp="confident">
+      <strong>I'm comfortable</strong><span>Short version, and don't soften the numbers</span></button>
+  </div>
+</div>
+
+<!-- PROLOGUE screen 3 · name + avatar. Third, not first: asking for a
+     name before giving someone a reason to care is the weakest opening. -->
+<div class="screen" id="s-name" hidden>
+  <div class="screen-inner">
+    <h2 class="q">What should Nia call you?</h2>
+    <p class="q-sub">She'll use it sparingly. Nothing you type leaves this page.</p>
+    <label class="field">
+      <span class="field-label">Your name</span>
+      <input id="name-input" type="text" maxlength="24" autocomplete="given-name" placeholder="Ada">
+    </label>
+    <span class="field-label">Pick a mark</span>
+    <div class="avatars" id="avatars" role="group" aria-label="Choose your mark"></div>
+    <button class="btn" id="name-next">Continue</button>
+    <p class="fine">
+      Prices here are simulated, not real market history. This is a practice account
+      with pretend money. It is an educational tool, not financial advice.
+    </p>
+  </div>
+</div>
+
+<!-- ===================================================================
+     THE STAGE
+     =================================================================== -->
+<div class="stage" id="stage" hidden>
+
+  <header class="topbar">
+    <span class="chapter-tag" id="chapter-tag">Prologue</span>
+    <div class="beads" id="beads" aria-hidden="true"></div>
+    <span class="topbar-spacer"></span>
+    <span class="badge"><span class="badge-dot"></span>Simulated data</span>
+    <button class="link-btn" id="open-checks">Content checks</button>
+  </header>
+
+  <!-- The viewport holds either the chart or an interstitial's media slot. -->
+  <div class="viewport" id="viewport">
+    <svg id="chart" role="img" aria-labelledby="chapter-tag" aria-describedby="chart-desc"></svg>
+    <p id="chart-desc" class="sr-only"></p>
+    <div class="media" id="media" hidden></div>
+  </div>
+
+  <!-- The wager meter. Hidden until Vela sets the terms. -->
+  <div class="wager" id="wager" hidden>
+    <div class="wager-head">
+      <span class="wager-equity" id="w-equity">$100.00</span>
+      <span id="w-sub">in the account</span>
+      <span class="wager-verdict" id="w-verdict" data-v="open">Between her lines</span>
+    </div>
+    <div class="track" id="track">
+      <div class="track-rail"></div>
+      <div class="track-fill" id="w-fill"></div>
+      <div class="gate gate-bust" id="g-bust"></div>
+      <div class="gate gate-wish" id="g-wish"></div>
+      <div class="gate-label" id="g-bust-l" style="color:var(--down)">$90 BUST</div>
+      <div class="gate-label" id="g-wish-l" style="color:var(--up)">$110 WISH</div>
+      <div class="ghost" id="w-ghost" hidden title="The lowest your account has been"></div>
+      <div class="marker" id="w-marker"></div>
+    </div>
+    <p class="wager-note" id="w-note"></p>
+  </div>
+
+  <!-- Dialogue -->
+  <div class="talk" id="talk" data-speaker="coach">
+    <div class="who">
+      <span class="who-sigil" id="who-sigil"></span>
+      <span>
+        <span class="who-name" id="who-name">Nia Okafor</span>
+        <span class="who-role" id="who-role"> · Your coach</span>
+      </span>
+    </div>
+    <div class="lines" id="lines"></div>
+    <p class="aside" id="aside" hidden></p>
+    <div class="facts" id="facts" hidden></div>
+    <div class="actions" id="actions"></div>
+  </div>
+</div>
+
+<!-- ===================================================================
+     ENDING
+     =================================================================== -->
+<div class="screen" id="s-end" hidden>
+  <div class="screen-inner" style="max-width:560px">
+    <p class="ending-kicker" id="end-kicker">Ending</p>
+    <h2 class="ending-title" id="end-title">—</h2>
+    <div class="lines" id="end-lines" style="margin-top:16px"></div>
+    <p class="aside" id="end-next" style="margin-top:12px"></p>
+    <div class="ledger" id="end-ledger"></div>
+    <p class="coda" id="end-coda"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="end-again">Play it differently</button>
+      <button class="btn btn-ghost" id="end-checks">Content checks</button>
+    </div>
+    <p class="fine" id="end-fine"></p>
+  </div>
+</div>
+
+<!-- ===================================================================
+     CONTENT CHECKS — the seven tests from STORY.md section 9, run in
+     the browser against the same content the story plays.
+     =================================================================== -->
+<div id="checks" hidden>
+  <div class="checks-head">
+    <p class="checks-title">Story content checks</p>
+    <span class="topbar-spacer"></span>
+    <button class="link-btn" id="close-checks">Close</button>
+  </div>
+  <div id="checks-body"></div>
+</div>
+
+<script>
+/* =======================================================================
+   Rich-HER — Vela's Wager. Self-contained narrative layer.
+
+   No ES modules and no fetch(): both fail on file://, and this has to open
+   by double-click with no server and no venue wifi.
+
+   This file is a faithful JS MIRROR of server/story_engine.py — same
+   function names, same flag names, same error codes, same operators. The
+   scene graph below uses the exact shape the backend already consumes
+   (web/scenes/*.json), so the content lifts into story/*.json verbatim and
+   the engine can be swapped for POST /api/story/advance without rewriting
+   a single line of copy.
+
+   Nothing in the content is ever eval'd. A condition is data, so a writer
+   can edit scenes without being able to execute code.
+   ======================================================================= */
+
+const $ = id => document.getElementById(id);
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------------------------------------------------------------
+   THE OPENING STATISTIC
+
+   Deliberately left for the team to fill with a figure you can source.
+   BUILD-BRIEF.md: "Never invent URLs, research or interviews." A made-up
+   number is the fastest way to lose a judge who checks.
+
+   Set `figure` and `source` and the screen leads with the number. Leave
+   `figure` null and it leads with the claim instead and still reads as
+   finished — but the source line will call itself out in red until you
+   fill it, on purpose.
+   --------------------------------------------------------------------- */
+const STAT = {
+  figure: '2\u00d7',
+  claim: 'Women are nearly twice as likely as men to describe their own financial knowledge as \u201cnon-existent.\u201d',
+  source: "Fidelity's 2024 Women & Investing Study, published 3 October 2024."
+};
+/* Sourcing notes, so the next person does not have to re-do this:
+
+   USED  "nearly twice as likely as men to describe their financial knowledge
+         as 'non-existent'" - Fidelity 2024 Women & Investing Study. Reported
+         by InvestmentNews covering the study:
+         investmentnews.com/ria-news/women-making-deeper-strides-into-stocks-finds-fidelity/257570
+
+   The study itself is confirmed on Fidelity's own newsroom (release dated
+   3 October 2024), which states 71% of women own stock market investments,
+   up 18% on 2023:
+   newsroom.fidelity.com/pressreleases/new-research-from-fidelity--shows-71--of-women-own-investments-in-the-stock-market/s/db3a5765-9b69-4e51-a315-66ecc51e0066
+
+   ALTERNATES, same study, if you prefer a percentage to a multiple:
+     "48% of women are embarrassed they don't know more about investing"
+     "55% of women are overwhelmed when it comes to their finances"
+   Both appear in secondary coverage rather than the primary release, so
+   confirm them on Fidelity's page before putting either on a slide.
+
+   Do NOT swap in a number you have not opened the source for. BUILD-BRIEF.md:
+   never invent research. A judge who checks is the one you lose. */
+
+/* =======================================================================
+   FIXTURE — the price path, built from fixed anchors.
+
+   Anchor-interpolated rather than a free random walk: every number the
+   story quotes has to be exact and identical on every run, because the
+   copy states dollar figures out loud. Noise tapers to zero at each
+   anchor, so the shape looks organic and the waypoints stay exact.
+
+   Designed against STORY.md §2 (the checkpoint table) and §3 (the gain
+   fixture). See CHECKS at the bottom: the arithmetic is asserted in-page.
+   ======================================================================= */
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function buildSeries(anchors, seed, noise) {
+  const rand = mulberry32(seed);
+  const n = anchors[anchors.length - 1][0] + 1;
+  const out = [];
+  let a = 0;
+  for (let d = 0; d < n; d++) {
+    while (a < anchors.length - 2 && d > anchors[a + 1][0]) a++;
+    const [d0, p0] = anchors[a], [d1, p1] = anchors[a + 1];
+    const u = Math.min(1, Math.max(0, (d - d0) / (d1 - d0)));
+    const ease = (1 - Math.cos(Math.PI * u)) / 2;            // smooth between anchors
+    const taper = Math.sin(Math.PI * u);                     // 0 at both anchors
+    out.push(+((p0 + (p1 - p0) * ease) * (1 + (rand() * 2 - 1) * noise * taper)).toFixed(2));
+  }
+  for (const [d, p] of anchors) out[d] = p;                  // anchors are exact
+  return out;
+}
+
+const ENTRY_BAR = 20;      // where Chapter 3 buys, matching web/scenes/act4.json
+const TROUGH_BAR = 68;     // the lowest point — where Vela appears
+const LAST_BAR = 89;
+
+const AUR = {
+  symbol: 'AUR', name: 'Aurelia Systems', kind: 'a company that makes battery cells',
+  dataSource: 'synthetic',
+  closes: buildSeries([[0, 19.40], [ENTRY_BAR, 21.00], [32, 19.30], [45, 21.10],
+                       [55, 23.60], [TROUGH_BAR, 16.60], [78, 21.15], [LAST_BAR, 26.30]], 4211, 0.016)
+};
+const ORB = {
+  symbol: 'ORB', name: 'Orbit 500 Fund', kind: 'five hundred companies in one purchase',
+  dataSource: 'synthetic',
+  closes: buildSeries([[0, 22.10], [ENTRY_BAR, 22.80], [32, 22.15], [45, 23.10],
+                       [55, 23.60], [TROUGH_BAR, 22.40], [78, 24.00], [LAST_BAR, 25.90]], 9003, 0.008)
+};
+const BOOK = { AUR, ORB };
+const priceOf = (sym, bar) => BOOK[sym].closes[Math.min(bar, LAST_BAR)];
+
+/* =======================================================================
+   STORY ENGINE — mirrors server/story_engine.py
+   ======================================================================= */
+const WISH_LINE = 110.0;
+const BUST_LINE = 90.0;
+const START_CAPITAL = 100.0;
+
+// A misspelled flag would silently make an ending unreachable, so anything
+// outside this set is rejected loudly rather than ignored.
+const KNOWN_FLAGS = new Set(['panicked_at_trough', 'held_through_drop', 'overtraded',
+  'went_all_in', 'diversified', 'took_money_out', 'held_the_line', 'refused_the_wish']);
+
+// Computed from the portfolio every time. Never stored, so it cannot drift.
+const KNOWN_COMPUTED = new Set(['equity', 'equity_pct', 'cash', 'trade_count',
+  'position_count', 'worst_equity_seen', 'vs_wish', 'vs_bust', 'start_capital']);
+
+const KNOWN_EFFECTS = new Set(['withdraw', 'deposit']);
+
+const OPERATORS = {
+  eq:  (a, b) => a === b,
+  neq: (a, b) => a !== b,
+  lt:  (a, b) => a < b,
+  lte: (a, b) => a <= b,
+  gt:  (a, b) => a > b,
+  gte: (a, b) => a >= b,
+};
+
+class StoryError extends Error {
+  constructor(code, message, extra = {}) { super(message); this.code = code; this.extra = extra; }
+}
+
+const r2 = n => Math.round(n * 100) / 100;
+
+/** Everything a condition may test, derived from the portfolio. */
+function compute(equity, cash, trades, positions, worstSeen, startCapital = START_CAPITAL) {
+  equity = r2(equity);
+  return {
+    equity,
+    equity_pct: r2((equity / startCapital - 1) * 100),
+    cash: r2(cash),
+    trade_count: trades.length,
+    position_count: positions.length,
+    worst_equity_seen: r2(Math.min(worstSeen, equity)),
+    vs_wish: r2(equity - startCapital * 1.10),
+    vs_bust: r2(equity - startCapital * 0.90),
+    start_capital: r2(startCapital),
+  };
+}
+
+/** Flags the engine works out for itself, so content never has to set them. */
+function deriveFlags(computed, trades, positions, soldAtWorst) {
+  const flags = new Set();
+  if (computed.trade_count > 6) flags.add('overtraded');
+  if (computed.position_count > 1) flags.add('diversified');
+  if (soldAtWorst) flags.add('panicked_at_trough');
+  // "all in" means one position took more than 75% of the account at entry.
+  for (const p of positions) if ((p.cost || 0) > computed.start_capital * 0.75) flags.add('went_all_in');
+  return flags;
+}
+
+/** Is this condition true? Conditions are data, never expressions. */
+function matches(condition, computed, flags) {
+  if (!condition) return true;                       // no `when` is the catch-all
+  if ('all' in condition) return condition.all.every(c => matches(c, computed, flags));
+  if ('any' in condition) return condition.any.some(c => matches(c, computed, flags));
+  if ('not' in condition) return !matches(condition.not, computed, flags);
+
+  if ('flag' in condition) {
+    const name = condition.flag;
+    if (!KNOWN_FLAGS.has(name)) throw new StoryError('UNKNOWN_FLAG', `Unknown flag '${name}'.`, { flag: name });
+    return flags.has(name) === (condition.is ?? true);
+  }
+  if ('computed' in condition) {
+    const field = condition.computed;
+    if (!KNOWN_COMPUTED.has(field)) throw new StoryError('UNKNOWN_FIELD', `Unknown computed field '${field}'.`, { field });
+    const ops = Object.keys(condition).filter(k => k in OPERATORS);
+    if (!ops.length) throw new StoryError('NO_OPERATOR', `Condition on '${field}' has no operator.`, { field });
+    return ops.every(op => OPERATORS[op](computed[field], condition[op]));
+  }
+  throw new StoryError('BAD_CONDITION', 'Condition is neither a combinator nor a leaf.');
+}
+
+function getScene(graph, sceneId) {
+  const scene = (graph.nodes || {})[sceneId];
+  if (!scene) throw new StoryError('UNKNOWN_SCENE', `There is no scene '${sceneId}'.`, { sceneId });
+  return { id: sceneId, ...scene };
+}
+
+/** Where does this scene go? A choice scene needs an option id. */
+function nextScene(graph, sceneId, optionId = null) {
+  const scene = getScene(graph, sceneId);
+  const respond = scene.respond || {};
+  if (respond.type === 'choice') {
+    if (optionId === null) throw new StoryError('CHOICE_REQUIRED', 'This scene needs a choice.', { sceneId });
+    const opt = (respond.options || []).find(o => o.id === optionId);
+    if (!opt) throw new StoryError('UNKNOWN_OPTION', `No option '${optionId}' on ${sceneId}.`, { sceneId });
+    return opt.goto;
+  }
+  if (optionId !== null) throw new StoryError('NOT_A_CHOICE', `${sceneId} takes no choice.`, { sceneId });
+  if (!respond.goto) throw new StoryError('DEAD_END', `${sceneId} has no way out.`, { sceneId });
+  return respond.goto;
+}
+
+/** The consequences of one choice: [newFlags, effect]. The caller applies
+    the effect against the real portfolio; the engine stays pure. */
+function applyChoice(graph, sceneId, optionId, flags) {
+  const scene = getScene(graph, sceneId);
+  const opt = ((scene.respond || {}).options || []).find(o => o.id === optionId);
+  if (!opt) throw new StoryError('UNKNOWN_OPTION', `No option '${optionId}' on ${sceneId}.`, { sceneId });
+  const next = new Set(flags);
+  for (const name of opt.sets || []) {
+    if (!KNOWN_FLAGS.has(name)) throw new StoryError('UNKNOWN_FLAG', `Option sets unknown flag '${name}'.`, { flag: name });
+    next.add(name);
+  }
+  const effect = opt.effect || {};
+  for (const key of Object.keys(effect)) {
+    if (!KNOWN_EFFECTS.has(key)) throw new StoryError('UNKNOWN_EFFECT', `Option declares unknown effect '${key}'.`, { effect: key });
+  }
+  return [next, effect];
+}
+
+/** First ending whose condition matches, in priority order. Deliberately
+    NOT ranked by money — see STORY.md section 8. */
+function chooseEnding(endings, computed, flags) {
+  for (const ending of [...endings].sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999))) {
+    if (matches(ending.when, computed, flags)) return ending;
+  }
+  throw new StoryError('NO_ENDING', 'No ending matched. One ending must be a catch-all.');
+}
+
+/** Where she stands against Vela's two lines. */
+function wagerState(computed) {
+  const equity = computed.equity;
+  const wish = r2(computed.start_capital * 1.10);
+  const bust = r2(computed.start_capital * 0.90);
+  return { wish_line: wish, bust_line: bust, equity,
+    above_wish: equity >= wish, below_bust: equity <= bust,
+    verdict: equity >= wish ? 'wish' : (equity <= bust ? 'bust' : 'open') };
+}
+
+/* =======================================================================
+   CHARACTERS
+
+   Nia teaches. Vela tests. Vela is a woman on purpose: this product exists
+   because women opt out of investing more than men do, and a story where a
+   man hands a woman money and grades how she manages it would reproduce
+   the exact dynamic we are trying to dissolve.
+
+   Vela is also an unreliable narrator. She believes the money is the
+   point. The endings are built to prove her wrong.
+   ======================================================================= */
+const CAST = {
+  coach:    { name: 'Nia Okafor', role: 'Your coach', sigil: 'nia' },
+  vela:     { name: 'Vela',       role: 'The wizard', sigil: 'vela' },
+  narrator: { name: '',           role: '',           sigil: 'none' },
+};
+
+/* =======================================================================
+   THE SCENE GRAPH
+
+   Same shape as web/scenes/act4.json, so this lifts into story/*.json with
+   no rewrite. Fields the engine reads: speaker, stage, at_bar, autoplay_to,
+   media, skippable, duration_hint_ms, lines, next, facts, respond.
+
+   `media` is an opaque slot name. Nothing here knows what an animation
+   looks like — the browser looks the name up in MEDIA below, and an
+   unregistered slot renders a labelled empty frame instead of breaking.
+   ======================================================================= */
+const GRAPH = { start: 'int.arrival', nodes: {
+
+/* ---------------- prologue ---------------- */
+'int.arrival': {
+  kind: 'interstitial', media: 'slot:arrival', duration_hint_ms: 4200, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['The room does not go dark. It goes quiet, which is worse.'],
+  respond: { type: 'continue', label: 'Look up', goto: 'pro.wager' },
+},
+
+'pro.wager': {
+  speaker: 'vela', stage: 'media', media: 'slot:arrival',
+  lines: [
+    'One hundred dollars. It was never yours, so you cannot truly lose it.',
+    'Grow it by a tenth and I grant you one wish. Lose a tenth and I take it back, and you keep nothing but what you learned.'
+  ],
+  next: 'Which, I suspect, you will undervalue.',
+  respond: { type: 'choice', prompt: 'Do you take it?', options: [
+    { id: 'take',  label: 'Take the hundred', goto: 'pro.terms' },
+    { id: 'ask',   label: 'What counts as losing?', goto: 'pro.clarify' },
+  ]},
+},
+
+'pro.clarify': {
+  speaker: 'vela', stage: 'media', media: 'slot:arrival',
+  lines: [
+    'Ninety dollars. At ninety I take it back, wherever the price goes afterwards.',
+    'I check when I choose to check, not when it suits you. That is the whole of the arrangement.'
+  ],
+  respond: { type: 'continue', label: 'Take the hundred', goto: 'pro.terms' },
+},
+
+'pro.terms': {
+  speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: [
+    "Alright. She's gone, and you're holding a hundred dollars of someone else's money.",
+    "I'm Nia. I'll be here the whole way, and I'll tell you what everything costs before you do it."
+  ],
+  next: "She left out the useful part, which is what any of this actually means. Let's start there.",
+  respond: { type: 'continue', label: 'Start', goto: 'ch1.open' },
+},
+
+/* ---------------- chapter 1 · what a stock is ---------------- */
+'ch1.open': {
+  chapter: 1, speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: [
+    'This line is one company: Aurelia Systems. They make battery cells.',
+    'The line is what one share of that company cost, each day. That is all a price chart is.'
+  ],
+  facts: { 'One share today': 'price' },
+  respond: { type: 'continue', label: 'What is a share?', goto: 'ch1.what' },
+},
+
+'ch1.what': {
+  chapter: 1, speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: [
+    'A share is a slice of the company. Buy one, and you own a very small piece of Aurelia.',
+    "If the company is worth more later, your slice is worth more. If it's worth less, so is your slice."
+  ],
+  next: 'Nobody is holding your money for you. It has turned into a piece of a company, and that piece has a price that moves.',
+  respond: { type: 'choice', prompt: 'So if you buy a share for $20 and the price falls to $18 —', options: [
+    { id: 'lost',  label: 'You have lost $2', goto: 'ch1.answer.lost' },
+    { id: 'paper', label: 'Your slice is worth $2 less, but nothing has happened yet', goto: 'ch1.answer.paper' },
+  ]},
+},
+
+'ch1.answer.lost': {
+  chapter: 1, speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: [
+    "That's how it feels, and the feeling is the thing that makes people sell at the worst moment.",
+    "Here's the sharper version: your slice is worth $2 less today. You haven't lost anything until you sell it and turn it back into cash."
+  ],
+  next: 'The difference between those two sentences is most of what this hour is about.',
+  respond: { type: 'continue', label: 'Go on', goto: 'ch1.close' },
+},
+
+'ch1.answer.paper': {
+  chapter: 1, speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: [
+    "That's it exactly. It's worth $2 less today. You haven't lost anything until you sell and turn it back into cash.",
+    "People call that a paper loss. It becomes a real one the moment you decide it is."
+  ],
+  next: 'Hold onto that. It comes back later, at a moment when it will be much harder to believe.',
+  respond: { type: 'continue', label: 'Go on', goto: 'ch1.close' },
+},
+
+'ch1.close': {
+  chapter: 1, speaker: 'coach', stage: 'chart.paused', at_bar: 12,
+  lines: ["You've got a hundred dollars and a company. Next: how to read what the line is telling you."],
+  respond: { type: 'continue', label: 'Continue', goto: 'int.first-light' },
+},
+
+'int.first-light': {
+  kind: 'interstitial', media: 'slot:int-first-light', duration_hint_ms: 3600, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['A line is only a record of days that already happened.'],
+  respond: { type: 'continue', label: 'Go on', goto: 'ch2.open' },
+},
+
+/* ---------------- chapter 2 · reading the chart ---------------- */
+'ch2.open': {
+  chapter: 2, speaker: 'coach', stage: 'chart.autoplay', at_bar: 12, autoplay_to: 20,
+  lines: [
+    "Eight more days. Watch the right-hand edge — that's today, and it moves.",
+    'Up some days, down others, for reasons nobody in this room controls.'
+  ],
+  respond: { type: 'continue', label: 'Let the days run', goto: 'ch2.read' },
+},
+
+'ch2.read': {
+  chapter: 2, speaker: 'coach', stage: 'chart.paused', at_bar: 20,
+  facts: { 'One share today': 'price', 'Your cash': 'cash' },
+  lines: [
+    'One share of Aurelia costs $21.00 today. Your hundred dollars would buy four of them, with $16.00 left over.',
+    'Here is the part no chart will ever show you: everything to the right of today is blank.'
+  ],
+  next: 'Anyone who sounds certain about tomorrow is looking at the same blank space you are.',
+  respond: { type: 'continue', label: 'Understood', goto: 'ch2.vela' },
+},
+
+/* CHECKPOINT · light touch. She is only establishing that she watches. */
+'ch2.vela': {
+  chapter: 2, checkpoint: true, speaker: 'vela', stage: 'chart.paused', at_bar: 20,
+  lines: [
+    'One hundred dollars, untouched. Nothing risked, nothing learned.',
+    'I am not counting this as a move. I am only reminding you that I can see the board.'
+  ],
+  next: 'Ninety and I take it. One hundred and ten and you get your wish.',
+  respond: { type: 'continue', label: 'Keep going', goto: 'int.the-offer' },
+},
+
+'int.the-offer': {
+  kind: 'interstitial', media: 'slot:int-the-offer', duration_hint_ms: 4000, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['One hundred dollars does not have to move in one piece.'],
+  respond: { type: 'continue', label: 'Go on', goto: 'ch3.open' },
+},
+
+/* ---------------- chapter 3 · how much of your $100 ---------------- */
+'ch3.open': {
+  chapter: 3, speaker: 'coach', stage: 'chart.paused', at_bar: 20,
+  lines: [
+    "Now the decision that matters more than which company you picked: how much of the hundred goes in.",
+    "Most people skip this one. They decide what to buy and never decide how much, and the how much is what decides whether a bad month is survivable."
+  ],
+  next: 'Four shares spends $84 of your $100. One share spends $21. Neither is the right answer — they are different amounts of exposure to the same unknown.',
+  respond: { type: 'size', prompt: 'How many shares of Aurelia at $21.00?',
+             symbol: 'AUR', max: 4, goto: 'ch3.done' },
+},
+
+'ch3.done': {
+  chapter: 3, speaker: 'coach', stage: 'chart.paused', at_bar: 20,
+  facts: { 'You hold': 'position', 'Cash left': 'cash', 'Account': 'equity' },
+  lines: ['@sized'],
+  next: 'Write down how you feel right now. The number is about to move, and the feeling will move with it.',
+  respond: { type: 'continue', label: 'Continue', goto: 'ch3.vela' },
+},
+
+/* CHECKPOINT · Vela sees the size. Says nothing useful, on purpose. */
+'ch3.vela': {
+  chapter: 3, checkpoint: true, speaker: 'vela', stage: 'chart.paused', at_bar: 20,
+  lines: ['@vela_size'],
+  next: 'I will look again when it is interesting.',
+  respond: { type: 'continue', label: 'Let the days run', goto: 'int.waiting' },
+},
+
+'int.waiting': {
+  kind: 'interstitial', media: 'slot:int-waiting', duration_hint_ms: 4400, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['Days pass whether or not anybody is watching them.'],
+  respond: { type: 'continue', label: 'Go on', goto: 'ch4.open' },
+},
+
+/* ---------------- chapter 4 · the drop ---------------- */
+'ch4.open': {
+  chapter: 4, speaker: 'coach', stage: 'chart.autoplay', at_bar: 20, autoplay_to: 32,
+  lines: ["Twelve days. I'll go quiet — watch the line, and watch your number underneath it."],
+  respond: { type: 'continue', label: 'Run the days', goto: 'ch4.dip' },
+},
+
+'ch4.dip': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 32, drawdown: true,
+  facts: { 'One share today': 'price', 'Account': 'equity', 'Against the start': 'pnl' },
+  lines: ['@dip'],
+  next: "That's a paper loss. It isn't real until you decide it is. Three ways to go, and none of them is the wrong one.",
+  respond: { type: 'choice', prompt: 'What do you want to do?', options: [
+    { id: 'sell', label: 'Sell — turn it back into cash', goto: 'ch4.chose.sell' },
+    { id: 'hold', label: 'Hold — stay in', goto: 'ch4.chose.hold' },
+    { id: 'more', label: 'Buy one more while it is cheaper', goto: 'ch4.chose.more' },
+  ]},
+},
+
+'ch4.chose.sell': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 32,
+  facts: { 'Your cash': 'cash', 'Account': 'equity' },
+  lines: [
+    "Sold. The loss is real now, and your money is sitting in cash where it cannot fall any further.",
+    "Some people will call that the scared choice. It is the choice that lets you sleep tonight, and a person who sleeps keeps investing tomorrow."
+  ],
+  respond: { type: 'continue', label: 'Keep watching', goto: 'ch4.slide' },
+},
+
+'ch4.chose.hold': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 32,
+  lines: [
+    'Holding. Nothing happens to your money — it stays as shares, and the shares keep moving.',
+    'You have not lost anything and you have not made anything. You have decided to keep finding out.'
+  ],
+  respond: { type: 'continue', label: 'Keep watching', goto: 'ch4.slide' },
+},
+
+'ch4.chose.more': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 32,
+  facts: { 'You hold': 'position', 'Cash left': 'cash' },
+  lines: [
+    'Bought. Cheaper than last time, which lowers what you paid on average.',
+    "It also puts more of your hundred into one company. That is the trade you made, and it is worth naming out loud."
+  ],
+  respond: { type: 'continue', label: 'Keep watching', goto: 'ch4.slide' },
+},
+
+'ch4.slide': {
+  chapter: 4, speaker: 'coach', stage: 'chart.autoplay', at_bar: 32, autoplay_to: 68,
+  lines: ['It recovers for a while. Then it does not.'],
+  respond: { type: 'continue', label: 'Run the days', goto: 'ch4.trough' },
+},
+
+/* ======= THE CHECKPOINT · the whole product, in one scene =======
+   Vela arrives at the lowest point on the board. The sizing decision from
+   Chapter 3 already decided whether this is survivable, before the scene
+   even began. That is the risk lesson, baked into the plot. */
+'ch4.trough': {
+  chapter: 4, checkpoint: true, speaker: 'vela', stage: 'chart.paused', at_bar: 68, trough: true,
+  facts: { 'One share today': 'price', 'Account': 'equity', 'Her line': 'bust' },
+  lines: ['@trough'],
+  respond: { type: 'choice', prompt: 'She is waiting.', options: [
+    { id: 'sell_all', label: 'Sell everything — stop the bleeding', goto: 'ch4.panic' },
+    { id: 'hold',     label: 'Hold. Say nothing.', sets: ['held_through_drop'], goto: 'ch4.held' },
+  ]},
+},
+
+'ch4.panic': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 68,
+  facts: { 'Your cash': 'cash', 'Account': 'equity' },
+  lines: [
+    'Everything is cash now, and the number stopped moving.',
+    'I am not going to tell you that was wrong. Selling at the bottom is the most common thing a new investor does, and doing it once with pretend money is the cheapest way to learn what it feels like.'
+  ],
+  next: 'Keep your eye on the line for the next few days. Not to punish yourself — to see the shape of the thing you were inside of.',
+  respond: { type: 'continue', label: 'Go on', goto: 'int.aftermath' },
+},
+
+'ch4.held': {
+  chapter: 4, speaker: 'coach', stage: 'chart.paused', at_bar: 68,
+  lines: [
+    'You held. Your account is the lowest it has been, and you did nothing.',
+    'That is not bravery and it is not stubbornness. You decided how much to risk back in Chapter 3, and you let that decision stand under pressure.'
+  ],
+  next: 'That is the entire skill. It looks like nothing from the outside.',
+  respond: { type: 'continue', label: 'Go on', goto: 'int.aftermath' },
+},
+
+'int.aftermath': {
+  kind: 'interstitial', media: 'slot:int-aftermath', duration_hint_ms: 4200, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['The price stopped falling. Nobody rang a bell.'],
+  respond: { type: 'continue', label: 'Go on', goto: 'pressure.request' },
+},
+
+/* ---------------- pressure event · fires once, after ch4 ----------------
+   Money has real-world demands on it that have nothing to do with the
+   market. STORY.md ships the neutral version deliberately: a sick-parent
+   scene lands on a real memory for a chunk of any audience, and it tests
+   whether she is a good daughter rather than teaching risk.
+   The amount is $12 — see the note in CHECKS about why not $40. */
+'pressure.request': {
+  after_chapter: 'ch4', speaker: 'narrator', stage: 'chart.paused', at_bar: 70,
+  facts: { 'Your cash': 'cash' },
+  lines: [
+    'Your phone buzzes. Someone you love is $12 short on something that matters to them, and it is due tonight.',
+    'The money in your account is money. It does not stop being money because it is busy.'
+  ],
+  respond: { type: 'choice', options: [
+    { id: 'send', label: 'Send the $12', effect: { withdraw: 12 },
+      sets: ['took_money_out'], goto: 'pressure.sent' },
+    { id: 'keep', label: "Say you can't right now", sets: ['held_the_line'], goto: 'pressure.kept' },
+  ]},
+},
+
+'pressure.sent': {
+  speaker: 'coach', stage: 'chart.paused', at_bar: 70,
+  facts: { 'Your cash': 'cash', 'Account': 'equity' },
+  lines: [
+    'Sent. Your account is $12 smaller, and Vela does not adjust her line for it.',
+    'This is the part nobody models. Money you have committed to one thing is money you cannot hand to another, and the market has no idea anyone asked.'
+  ],
+  next: 'Keeping some of it in cash is what makes a moment like this a decision instead of an emergency.',
+  respond: { type: 'continue', label: 'Continue', goto: 'ch5.open' },
+},
+
+'pressure.kept': {
+  speaker: 'coach', stage: 'chart.paused', at_bar: 70,
+  lines: [
+    'You said no. Your account is intact and something else is not.',
+    'I am not scoring that. It is worth noticing that the money felt unavailable, though — that feeling is what an emergency fund is for, and it sits outside anything you invest.'
+  ],
+  respond: { type: 'continue', label: 'Continue', goto: 'ch5.open' },
+},
+
+/* ---------------- chapter 5 · diversification ---------------- */
+'ch5.open': {
+  chapter: 5, speaker: 'coach', stage: 'chart.autoplay', at_bar: 70, autoplay_to: 78,
+  lines: ['It climbed back. Let me show you something that was happening the whole time.'],
+  respond: { type: 'continue', label: 'Show me', goto: 'ch5.compare' },
+},
+
+'ch5.compare': {
+  chapter: 5, speaker: 'coach', stage: 'chart.compare', at_bar: 78,
+  lines: [
+    'The grey line is Orbit 500 — five hundred companies bought in one go, instead of one.',
+    'Same days, same market. Aurelia fell about 30% from its high. Orbit fell about 5%.'
+  ],
+  next: 'Both lines start at 100 here so you can compare their movement rather than their price. Owning five hundred companies means no single one of them can ruin your week.',
+  respond: { type: 'continue', label: 'So what do I do with that?', goto: 'ch5.offer' },
+},
+
+'ch5.offer': {
+  chapter: 5, speaker: 'coach', stage: 'chart.compare', at_bar: 78,
+  facts: { 'Orbit today': 'orb_price', 'Your cash': 'cash' },
+  lines: ['@offer'],
+  next: 'Spreading money out does not make more of it. It makes the bad weeks smaller, which is what keeps people from quitting.',
+  respond: { type: 'choice', prompt: 'One share of Orbit 500?', options: [
+    { id: 'spread', label: 'Buy one share of Orbit', goto: 'ch5.spread' },
+    { id: 'concentrate', label: 'Stay with Aurelia only', goto: 'ch5.concentrated' },
+  ]},
+},
+
+'ch5.spread': {
+  chapter: 5, speaker: 'coach', stage: 'chart.compare', at_bar: 78,
+  facts: { 'You hold': 'position', 'Cash left': 'cash', 'Account': 'equity' },
+  lines: [
+    'Done. You now own two different things, and they do not fall on the same days for the same reasons.',
+    'That is diversification. It is an unglamorous word for the least glamorous and most reliable idea in investing.'
+  ],
+  respond: { type: 'continue', label: 'Continue', goto: 'int.reckoning' },
+},
+
+'ch5.concentrated': {
+  chapter: 5, speaker: 'coach', stage: 'chart.compare', at_bar: 78,
+  lines: [
+    'Staying put. You know this company now, and there is something to be said for that.',
+    'It does mean one company decides your whole result. You saw what that felt like around day sixty-eight.'
+  ],
+  respond: { type: 'continue', label: 'Continue', goto: 'int.reckoning' },
+},
+
+'int.reckoning': {
+  kind: 'interstitial', media: 'slot:int-reckoning', duration_hint_ms: 4600, skippable: true,
+  speaker: 'narrator', stage: 'media',
+  lines: ['Eleven days left, and a wizard who thinks this was about the money.'],
+  respond: { type: 'continue', label: 'Finish it', goto: 'ch6.open' },
+},
+
+/* ---------------- chapter 6 · the reckoning ---------------- */
+'ch6.open': {
+  chapter: 6, speaker: 'coach', stage: 'chart.autoplay', at_bar: 78, autoplay_to: 89,
+  lines: ['Last stretch. Whatever happens here, the decisions were already made.'],
+  respond: { type: 'continue', label: 'Run the last days', goto: 'ch6.verdict' },
+},
+
+'ch6.verdict': {
+  chapter: 6, speaker: 'coach', stage: 'chart.paused', at_bar: 89,
+  facts: { 'Account': 'equity', 'Lowest it ever got': 'worst', 'Against the start': 'pnl' },
+  lines: ['@verdict'],
+  respond: { type: 'ending', label: 'Face her' },
+},
+
+}};
+
+/* Options that place a real order before the scene advances. The content
+   files never describe a trade as an "effect" — effects are withdraw and
+   deposit only, exactly as the Python engine allows. Orders go through the
+   portfolio, the same split the real backend uses (/api/orders, then
+   /api/story/advance). */
+const ORDER_ON_CHOICE = {
+  'ch4.dip:sell':      { side: 'SELL', symbol: 'AUR', all: true },
+  'ch4.dip:more':      { side: 'BUY',  symbol: 'AUR', qty: 1 },
+  'ch4.trough:sell_all': { side: 'SELL', symbol: 'AUR', all: true, panic: true },
+  'ch5.offer:spread':  { side: 'BUY',  symbol: 'ORB', qty: 1 },
+};
+
+/* =======================================================================
+   ENDINGS — copied verbatim from web/scenes/endings.json so the two cannot
+   drift. Not ranked by money: Vela thinks the money is the score, and the
+   ordering exists to prove her wrong. The Steady Hand is the true good
+   ending and it is also the most common one, on purpose.
+   ======================================================================= */
+const ENDINGS = [
+  { id: 'hollow_wish', priority: 1, title: 'The Hollow Wish',
+    when: { all: [ { computed: 'equity', gte: 110 },
+                   { any: [ { flag: 'went_all_in' }, { flag: 'overtraded' } ] } ]},
+    speaker: 'vela',
+    lines: ['You cleared my line. A wish, then, as promised.',
+            'Though I notice you got there by putting everything on one number and holding your breath.'],
+    next: 'You got lucky. Luck is not a method, and it does not come twice. Spend the wish carefully.',
+    coach_coda: "She's not wrong, and she's not being kind about it. You won this one. Next time the same move costs you." },
+
+  { id: 'wish_granted', priority: 2, title: 'The Wish Granted',
+    when: { computed: 'equity', gte: 110 },
+    speaker: 'vela',
+    lines: ['You cleared my line, and you did it without flinching or gambling.', 'Name your wish.'],
+    next: 'Take your time. I find the people who earn these ask for smaller things than the ones who don’t.',
+    coach_coda: "You did that with a plan, not a hunch. That's the part that repeats." },
+
+  { id: 'the_panic', priority: 3, title: 'The Panic',
+    when: { flag: 'panicked_at_trough' },
+    speaker: 'vela',
+    lines: ["You sold at the lowest point on the board. I'll take what's left.",
+            'Watch, though. This is what the days after looked like.'],
+    next: 'The dip was temporary. Your decision inside it was not.',
+    coach_coda: 'Everyone does this once. The people who keep investing are the ones who did it once and understood why. You just did.' },
+
+  { id: 'untouched_hundred', priority: 4, title: 'The Untouched Hundred',
+    when: { computed: 'trade_count', eq: 0 },
+    speaker: 'vela',
+    lines: ['One hundred dollars, exactly as I left it. Not a cent lost.', 'Not a thing learned, either.'],
+    next: 'Keeping every dollar and finding out nothing is the only way to truly lose here. Come back when you want to try.',
+    coach_coda: "Nothing bad happened. Nothing happened at all. That's the version of this that costs the most over ten years, and nobody ever feels it." },
+
+  { id: 'cost_of_certainty', priority: 5, title: 'The Cost of Certainty',
+    when: { computed: 'equity', lte: 90 },
+    speaker: 'vela',
+    lines: ["Beneath my line. I'll take it back, as we agreed.",
+            'You held your nerve while it fell, which is more than most manage. It simply fell further.'],
+    next: 'That happens. It will happen again, and it is not a verdict on you.',
+    coach_coda: "The money was never yours. What you know now is, and it doesn't go back in her pocket." },
+
+  { id: 'steady_hand', priority: 6, title: 'The Steady Hand',
+    when: null,
+    speaker: 'vela',
+    lines: ['Between my lines. By my terms, nothing happened at all.', 'You did not win my wager.'],
+    next: 'You did something harder. You did not flinch, and you did not chase. I have no prize for that, which tells you something about my prizes.',
+    coach_coda: "She's wrong about this one, and she knows it. Sitting still while a number goes red is the whole skill. You have it." },
+];
+
+/* =======================================================================
+   MEDIA REGISTRY
+
+   The engine only ever passes a slot NAME. The browser looks it up here.
+   Rename a slot, replace it, or delete it, and nothing in the story logic
+   changes — an unregistered slot renders a labelled empty frame, which is
+   what lets storyboarding happen in parallel without blocking anything.
+   ======================================================================= */
+const MEDIA = {
+  'slot:arrival': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      <g class="spin" style="transform-origin:200px 150px">
+        <circle cx="200" cy="150" r="86" fill="none" stroke="var(--vela)" stroke-width="1" opacity=".22"/>
+      </g>
+      <polygon class="drawIn" points="200,68 252,150 200,232 148,150" fill="none"
+               stroke="var(--vela)" stroke-width="1.6"/>
+      <line class="fadeIn" x1="66" y1="150" x2="148" y2="150" stroke="var(--vela)" stroke-width="1.4"/>
+      <line class="fadeIn2" x1="252" y1="150" x2="340" y2="118" stroke="var(--vela)" stroke-width="1.2" opacity=".75"/>
+      <line class="fadeIn2" x1="252" y1="150" x2="340" y2="150" stroke="var(--vela)" stroke-width="1.2" opacity=".55"/>
+      <line class="fadeIn2" x1="252" y1="150" x2="340" y2="182" stroke="var(--vela)" stroke-width="1.2" opacity=".35"/>
+      <circle class="fadeIn" cx="200" cy="150" r="4" fill="var(--vela)"/>
+      <text class="fadeIn2" x="200" y="272" text-anchor="middle"
+            fill="var(--text-3)" font-size="11" letter-spacing="3">VELA</text>
+    </svg>`,
+
+  'slot:int-first-light': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      <line x1="40" y1="250" x2="360" y2="250" stroke="var(--axis)" stroke-width="1"/>
+      <polyline class="drawIn" fill="none" stroke="var(--up)" stroke-width="2"
+        stroke-linejoin="round" stroke-linecap="round"
+        points="40,196 78,178 116,206 154,160 192,184 230,132 268,150 306,108 344,124"/>
+      <circle class="fadeIn" cx="344" cy="124" r="4.5" fill="var(--up)" stroke="var(--pane)" stroke-width="2"/>
+      <text class="fadeIn2" x="344" y="104" text-anchor="end" fill="var(--text-3)" font-size="11">today</text>
+    </svg>`,
+
+  'slot:int-the-offer': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      <circle class="fadeIn" cx="200" cy="96" r="30" fill="none" stroke="var(--gold)" stroke-width="1.4"/>
+      <text class="fadeIn" x="200" y="101" text-anchor="middle" fill="var(--gold)" font-size="13" font-weight="600">$100</text>
+      <g class="fadeIn2">
+        ${[0, 1, 2, 3].map(i => `
+          <circle cx="${116 + i * 56}" cy="208" r="20" fill="none" stroke="var(--up)" stroke-width="1.3"/>
+          <text x="${116 + i * 56}" y="213" text-anchor="middle" fill="var(--up)" font-size="10">$21</text>
+          <line x1="200" y1="128" x2="${116 + i * 56}" y2="186" stroke="var(--line)" stroke-width="1"/>`).join('')}
+      </g>
+      <text class="fadeIn2" x="200" y="262" text-anchor="middle" fill="var(--text-3)" font-size="11">
+        how much is a separate question from what</text>
+    </svg>`,
+
+  'slot:int-waiting': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      ${[40, 70, 100].map((r, i) => `
+        <circle class="pulse" style="animation-delay:${i * 0.7}s" cx="200" cy="150" r="${r}"
+                fill="none" stroke="var(--text-3)" stroke-width="1"/>`).join('')}
+      <circle cx="200" cy="150" r="3.5" fill="var(--text-2)"/>
+      <text class="fadeIn2" x="200" y="272" text-anchor="middle" fill="var(--text-3)" font-size="11">
+        nothing is being decided right now</text>
+    </svg>`,
+
+  'slot:int-aftermath': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      <polyline class="drawIn" fill="none" stroke="var(--down)" stroke-width="2"
+        stroke-linejoin="round" points="40,86 90,120 140,110 190,176 240,218"/>
+      <polyline class="drawIn" style="animation-delay:.9s" fill="none" stroke="var(--up)" stroke-width="2"
+        stroke-linejoin="round" points="240,218 290,214 340,206"/>
+      <circle class="fadeIn2" cx="240" cy="218" r="5" fill="none" stroke="var(--down)" stroke-width="2"/>
+      <text class="fadeIn2" x="240" y="248" text-anchor="middle" fill="var(--text-3)" font-size="11">
+        the lowest point, in hindsight</text>
+    </svg>`,
+
+  'slot:int-reckoning': () => `
+    <svg viewBox="0 0 400 300" aria-hidden="true">
+      <polyline class="drawIn" fill="none" stroke="var(--up)" stroke-width="2"
+        points="40,220 120,150 200,196 280,104 350,70"/>
+      <polyline class="drawIn" style="animation-delay:.5s" fill="none" stroke="var(--text-2)" stroke-width="1.6"
+        points="40,190 120,178 200,186 280,166 350,150"/>
+      <line class="fadeIn2" x1="350" y1="60" x2="350" y2="240" stroke="var(--gold)" stroke-width="1"/>
+      <text class="fadeIn2" x="344" y="256" text-anchor="end" fill="var(--gold)" font-size="11">she counts here</text>
+    </svg>`,
+};
+
+const SIGILS = {
+  nia: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--gold-dim)"/>
+    <path d="M16 7a9 9 0 0 1 0 18" fill="none" stroke="var(--gold)" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M16 11a5 5 0 0 1 0 10" fill="none" stroke="var(--gold)" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="16" cy="16" r="1.8" fill="var(--gold)"/></svg>`,
+  vela: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--vela-dim)"/>
+    <polygon points="16,6 23,16 16,26 9,16" fill="none" stroke="var(--vela)" stroke-width="1.5"/>
+    <line x1="3" y1="16" x2="9" y2="16" stroke="var(--vela)" stroke-width="1.3"/>
+    <line x1="23" y1="16" x2="29" y2="12" stroke="var(--vela)" stroke-width="1.1" opacity=".7"/>
+    <line x1="23" y1="16" x2="29" y2="20" stroke="var(--vela)" stroke-width="1.1" opacity=".45"/></svg>`,
+  none: `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="3" fill="var(--text-3)"/></svg>`,
+};
+
+const AVATARS = [
+  'M8 20 L16 6 L24 20 Z', 'M16 6 A10 10 0 1 1 15.9 6 Z', 'M7 7 H25 V25 H7 Z',
+  'M16 5 L27 16 L16 27 L5 16 Z', 'M16 6 L20 13 L27 16 L20 19 L16 26 L12 19 L5 16 L12 13 Z',
+  'M6 16 Q16 3 26 16 Q16 29 6 16 Z',
+].map(d => `<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+  <path d="${d}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`);
+
+/* =======================================================================
+   SESSION STATE
+   ======================================================================= */
+const S = {
+  name: '', avatar: 0, experience: 'new',
+  cash: START_CAPITAL,
+  positions: {},                 // symbol -> { qty, cost }
+  trades: [],
+  bar: 12,
+  worstSeen: START_CAPITAL,
+  flags: new Set(),
+  soldAtWorst: false,
+  scene: GRAPH.start,
+  wagerLive: false,
+  ended: false,
+};
+
+const usd = n => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signedUsd = n => (n >= 0 ? '+' : '−') + usd(n).slice(1);
+const holdings = () => Object.entries(S.positions)
+  .filter(([, p]) => p.qty > 0)
+  .map(([symbol, p]) => ({ symbol, qty: p.qty, cost: r2(p.cost) }));
+
+function equityAt(bar = S.bar) {
+  let e = S.cash;
+  for (const h of holdings()) e += h.qty * priceOf(h.symbol, bar);
+  return r2(e);
+}
+
+function snapshot() {
+  const c = compute(equityAt(), S.cash, S.trades, holdings(), S.worstSeen);
+  const derived = deriveFlags(c, S.trades, holdings(), S.soldAtWorst);
+  const flags = new Set([...S.flags, ...derived]);
+  return { computed: c, flags, wager: wagerState(c) };
+}
+
+/** Walk the cursor forward so the worst point is recorded from the days
+    actually lived through, not inferred afterwards. */
+function setBar(bar) {
+  const from = S.bar;
+  for (let b = Math.min(from, bar); b <= Math.max(from, bar); b++) {
+    S.worstSeen = Math.min(S.worstSeen, equityAt(b));
+  }
+  S.bar = bar;
+}
+
+function order({ side, symbol, qty, all, panic }) {
+  const pos = S.positions[symbol] || (S.positions[symbol] = { qty: 0, cost: 0 });
+  const px = priceOf(symbol, S.bar);
+  if (side === 'BUY') {
+    const n = qty || 0, spend = r2(n * px);
+    if (n <= 0 || spend > S.cash + 1e-9) return false;
+    S.cash = r2(S.cash - spend); pos.qty += n; pos.cost = r2(pos.cost + spend);
+  } else {
+    const n = all ? pos.qty : (qty || 0);
+    if (n <= 0 || n > pos.qty) return false;
+    const share = pos.qty ? pos.cost * (n / pos.qty) : 0;
+    S.cash = r2(S.cash + n * px); pos.qty -= n; pos.cost = r2(pos.cost - share);
+    if (pos.qty === 0) pos.cost = 0;
+    // Selling everything at the lowest point on the board is the flag the
+    // whole Panic ending hangs on.
+    if (panic) S.soldAtWorst = true;
+  }
+  S.trades.push({ side, symbol, qty: all ? '*' : qty, bar: S.bar, price: px });
+  return true;
+}
+
+/* =======================================================================
+   DYNAMIC LINES
+   A line of "@name" is resolved here, so copy that has to quote a real
+   dollar figure cannot drift from the portfolio it is describing.
+   ======================================================================= */
+const LINE = {
+  sized() {
+    const p = S.positions.AUR || { qty: 0, cost: 0 };
+    if (!p.qty) return ['Nothing in. All one hundred dollars still sitting in cash.',
+      'That is a decision too, and the line is going to move without you.'];
+    const share = p.qty === 1 ? 'share' : 'shares';
+    const pctIn = Math.round((p.cost / START_CAPITAL) * 100);
+    return [`${p.qty} ${share} of Aurelia, for ${usd(p.cost)}. You have ${usd(S.cash)} left in cash.`,
+      `That is ${pctIn}% of the hundred exposed to one company, and ${100 - pctIn}% that cannot fall at all.`];
+  },
+  vela_size() {
+    const p = S.positions.AUR || { qty: 0 };
+    if (!p.qty) return ['You have not moved.', 'Caution is a position. It is one that cannot win.'];
+    if (p.qty >= 4) return ['All of it, in one company.', 'Bold. I approve of bold, which ought to worry you.'];
+    if (p.qty === 1) return ['A toe in the water.',
+      'You will finish roughly where you started and call it wisdom. Perhaps it is.'];
+    return ['Half in, half held back.', 'Hedging against a future you cannot see. Sensible. Sensible rarely wins wishes.'];
+  },
+  dip() {
+    const c = snapshot().computed, px = priceOf('AUR', S.bar);
+    const p = S.positions.AUR || { qty: 0, cost: 0 };
+    if (!p.qty) return [`It dipped. One share is ${usd(px)}, down from ${usd(21)}.`,
+      'None of it is yours, so none of it moved. Watching this cost you nothing and taught you nothing.'];
+    return [`It dipped. Your ${p.qty === 1 ? 'share is' : 'shares are'} worth ${usd(p.qty * px)} now, against the ${usd(p.cost)} you paid.`,
+      `Your whole account reads ${usd(c.equity)}. Nothing has been sold, so nothing has been lost.`];
+  },
+  trough() {
+    const c = snapshot().computed, px = priceOf('AUR', S.bar);
+    const under = c.equity <= BUST_LINE;
+    if (!S.trades.length) return ['I came to collect and found nothing to collect.',
+      'One hundred dollars, exactly where I left it. You have been very safe and very still.'];
+    if (under) return [
+      `${usd(c.equity)}. That is beneath my line, and I am looking at it now.`,
+      'I do not wait for a better day to check. That was the arrangement, and you agreed to it back when the number was going up.'];
+    return [`${usd(c.equity)}. Above my line, barely, and only because you held something back.`,
+      'The version of you that put everything in is beneath it right now. Same company, same day, different decision three chapters ago.'];
+  },
+  offer() {
+    const px = priceOf('ORB', S.bar);
+    if (S.cash < px) return [`One share of Orbit costs ${usd(px)}. You have ${usd(S.cash)}.`,
+      'You cannot spread what you have already committed. That is the lesson, delivered the expensive way.'];
+    return [`One share of Orbit costs ${usd(px)}. You have ${usd(S.cash)} in cash.`,
+      'This will not make you more money than Aurelia might. It makes the worst week smaller.'];
+  },
+  verdict() {
+    const c = snapshot().computed;
+    const drop = r2(START_CAPITAL - c.worst_equity_seen);
+    return [`Day ninety. Your account reads ${usd(c.equity)}.`,
+      drop > 0.5
+        ? `At the worst moment it was ${usd(c.worst_equity_seen)} — ${usd(drop)} below where you started. You are still here.`
+        : 'It never dropped below where you started. You also never found out what that feels like.'];
+  },
+};
+
+function resolveLines(scene) {
+  const out = [];
+  for (const l of scene.lines || []) {
+    if (l.startsWith('@')) out.push(...LINE[l.slice(1)]());
+    else out.push(l.replace(/\{name\}/g, S.name || 'you'));
+  }
+  return out;
+}
+
+const FACTS = {
+  price:     () => ({ v: usd(priceOf('AUR', S.bar)) }),
+  orb_price: () => ({ v: usd(priceOf('ORB', S.bar)) }),
+  cash:      () => ({ v: usd(S.cash) }),
+  equity:    () => { const e = equityAt(); return { v: usd(e), d: e > START_CAPITAL ? 'up' : e < START_CAPITAL ? 'down' : '' }; },
+  worst:     () => ({ v: usd(snapshot().computed.worst_equity_seen) }),
+  bust:      () => ({ v: usd(BUST_LINE) }),
+  pnl:       () => { const d = r2(equityAt() - START_CAPITAL); return { v: signedUsd(d), d: d > 0 ? 'up' : d < 0 ? 'down' : '' }; },
+  position:  () => ({ v: holdings().map(h => `${h.qty} ${h.symbol}`).join(' + ') || 'nothing' }),
+};
+
+/* =======================================================================
+   CHART
+   Same marks and chrome as the trading screen. Scaled over the WHOLE
+   series and fixed, so the line never rescales under the reader as days
+   reveal — a jumping axis would make the drop look smaller than it was.
+   ======================================================================= */
+const PADC = { t: 26, r: 62, b: 26, l: 14 };
+
+function chartBox() {
+  const el = $('viewport');
+  return { W: Math.max(320, el.clientWidth), H: Math.max(180, el.clientHeight) };
+}
+
+function niceTicks(min, max, count) {
+  const raw = (max - min) / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = ([1, 2, 2.5, 5, 10].find(m => m * mag >= raw) || 10) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+
+function svgEl(name, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function txt(p, attrs, s) { const t = svgEl('text', attrs); t.textContent = s; p.appendChild(t); return t; }
+
+function renderChart(compare = false) {
+  const svg = $('chart'), { W, H } = chartBox();
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.textContent = '';
+  const plotW = W - PADC.l - PADC.r, plotH = H - PADC.t - PADC.b;
+  const X = i => PADC.l + (i / LAST_BAR) * plotW;
+
+  // Compare mode indexes both to 100 at day 0. Two series at different
+  // price levels on one set of axes would be a dual-axis chart, which
+  // invents a relationship that is not in the data.
+  const series = compare
+    ? [{ closes: AUR.closes.map(c => (c / AUR.closes[0]) * 100), cls: 'price-line', label: 'Aurelia' },
+       { closes: ORB.closes.map(c => (c / ORB.closes[0]) * 100), cls: 'price-line second', label: 'Orbit 500' }]
+    : [{ closes: AUR.closes, cls: 'price-line', label: 'Aurelia', area: true }];
+
+  const all = series.flatMap(s => s.closes);
+  let min = Math.min(...all), max = Math.max(...all);
+  const pad = (max - min) * 0.1 || 1; min -= pad; max += pad;
+  const Y = v => PADC.t + plotH - ((v - min) / (max - min)) * plotH;
+
+  for (const v of niceTicks(min, max, 4)) {
+    svg.appendChild(svgEl('line', { class: 'grid-line', x1: PADC.l, x2: W - PADC.r, y1: Y(v), y2: Y(v) }));
+    txt(svg, { x: W - PADC.r + 7, y: Y(v) + 3.5 }, compare ? v.toFixed(0) : '$' + v.toFixed(0));
+  }
+  svg.appendChild(svgEl('line', { class: 'axis-line', x1: PADC.l, x2: W - PADC.r, y1: H - PADC.b, y2: H - PADC.b }));
+  txt(svg, { x: PADC.l, y: H - PADC.b + 16 }, 'day 1');
+  txt(svg, { x: X(S.bar), y: H - PADC.b + 16, 'text-anchor': 'middle' }, 'day ' + (S.bar + 1));
+  if (compare) txt(svg, { x: W - PADC.r + 7, y: PADC.t - 10, 'text-anchor': 'end', class: 'anno dim' },
+    'indexed to 100 at day 1');
+
+  for (const s of series) {
+    const pts = s.closes.slice(0, S.bar + 1).map((c, i) => `${X(i).toFixed(1)},${Y(c).toFixed(1)}`);
+    if (pts.length < 2) continue;
+    if (s.area) svg.appendChild(svgEl('path', { class: 'price-area',
+      d: `M${pts[0]} L${pts.join(' L')} L${X(S.bar)},${PADC.t + plotH} L${X(0)},${PADC.t + plotH} Z` }));
+    svg.appendChild(svgEl('polyline', { class: s.cls, points: pts.join(' ') }));
+    // Direct label at the end of each line, so identity is never colour alone.
+    if (compare) txt(svg, { class: 'anno', x: X(S.bar) - 6, y: Y(s.closes[S.bar]) - 8, 'text-anchor': 'end' }, s.label);
+  }
+
+  // What she paid — an annotation, so it wears a text token, not a data hue.
+  const held = S.positions.AUR;
+  if (!compare && held && held.qty > 0) {
+    const avg = held.cost / held.qty;
+    if (avg >= min && avg <= max) {
+      svg.appendChild(svgEl('line', { class: 'entry-line', x1: PADC.l, x2: W - PADC.r, y1: Y(avg), y2: Y(avg) }));
+      txt(svg, { class: 'anno dim', x: PADC.l + 4, y: Y(avg) - 6 }, 'you paid ' + usd(avg));
+    }
+  }
+  if (!compare && S.bar >= TROUGH_BAR) {
+    svg.appendChild(svgEl('line', { class: 'trough-mark', x1: X(TROUGH_BAR), x2: X(TROUGH_BAR),
+      y1: PADC.t, y2: PADC.t + plotH }));
+    txt(svg, { class: 'anno dim', x: X(TROUGH_BAR) + 5, y: PADC.t + 12 }, 'lowest point');
+  }
+
+  const lastV = series[0].closes[S.bar];
+  svg.appendChild(svgEl('circle', { class: 'cross-dot', cx: X(S.bar), cy: Y(lastV), r: 4.5 }));
+  if (!compare) {
+    const g = svgEl('g', { class: 'last-tag' });
+    g.appendChild(svgEl('rect', { x: W - PADC.r + 2, y: Y(lastV) - 9, width: PADC.r - 6, height: 18, rx: 3 }));
+    txt(g, { x: W - PADC.r + 7, y: Y(lastV) + 4 }, lastV.toFixed(2));
+    svg.appendChild(g);
+  }
+
+  $('chart-desc').textContent =
+    `${AUR.name} practice price, day 1 to day ${S.bar + 1}. Started ${usd(AUR.closes[0])}, ` +
+    `now ${usd(AUR.closes[S.bar])}. Your account reads ${usd(equityAt())}.`;
+}
+
+let playRAF = null;
+function autoplayTo(target, done) {
+  cancelAnimationFrame(playRAF);
+  if (REDUCE) { setBar(target); renderChart(); paintWager(); done(); return; }
+  const from = S.bar, span = target - from, t0 = performance.now(), dur = 300 + Math.abs(span) * 34;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / dur);
+    setBar(Math.round(from + span * (1 - Math.pow(1 - p, 2))));
+    renderChart(); paintWager();
+    if (p < 1) playRAF = requestAnimationFrame(step); else done();
+  };
+  playRAF = requestAnimationFrame(step);
+}
+
+/* =======================================================================
+   THE WAGER METER
+   ======================================================================= */
+function paintWager() {
+  if (!S.wagerLive) return;
+  $('wager').hidden = false;
+  const { computed: c, wager } = snapshot();
+  const LO = 78, HI = 126, pos = v => Math.max(0, Math.min(100, ((v - LO) / (HI - LO)) * 100));
+
+  $('w-equity').textContent = usd(c.equity);
+  $('w-fill').style.width = pos(c.equity) + '%';
+  $('g-bust').style.left = pos(BUST_LINE) + '%';
+  $('g-wish').style.left = pos(WISH_LINE) + '%';
+  $('g-bust-l').style.left = pos(BUST_LINE) + '%';
+  $('g-wish-l').style.left = pos(WISH_LINE) + '%';
+  $('w-marker').style.left = pos(c.equity) + '%';
+
+  const ghost = $('w-ghost');
+  ghost.hidden = c.worst_equity_seen >= c.equity - 0.01;
+  ghost.style.left = pos(c.worst_equity_seen) + '%';
+
+  const v = $('w-verdict');
+  v.dataset.v = wager.verdict;
+  v.textContent = wager.verdict === 'wish' ? 'Above her wish line'
+    : wager.verdict === 'bust' ? 'Beneath her line' : 'Between her lines';
+  $('w-note').textContent = wager.verdict === 'bust'
+    ? `${usd(Math.abs(c.vs_bust))} under the line she takes it back at.`
+    : `${usd(Math.abs(c.vs_wish))} short of the wish. Lowest it has been: ${usd(c.worst_equity_seen)}.`;
+}
+
+/* =======================================================================
+   SCENE RENDERING
+   ======================================================================= */
+const CHAPTERS = ['Prologue', '1 · What a share is', '2 · Reading the chart',
+  '3 · How much', '4 · The drop', '5 · Spreading out', '6 · The reckoning'];
+let lastChapter = 0;
+
+function paintBeads(ch) {
+  const host = $('beads');
+  host.textContent = '';
+  for (let i = 1; i <= 6; i++) {
+    const b = document.createElement('span');
+    b.className = 'bead' + (i < ch ? ' seen' : i === ch ? ' now' : '');
+    host.appendChild(b);
+  }
+}
+
+function showScene(id) {
+  S.scene = id;
+  const scene = getScene(GRAPH, id);
+  if (id === 'pro.terms') S.wagerLive = true;   // the terms are set; start showing the meter
+  if (scene.chapter) lastChapter = scene.chapter;
+  $('chapter-tag').textContent = CHAPTERS[lastChapter] || 'Prologue';
+  paintBeads(lastChapter);
+
+  const who = CAST[scene.speaker] || CAST.coach;
+  $('talk').dataset.speaker = scene.speaker;
+  $('who-sigil').innerHTML = SIGILS[who.sigil];
+  $('who-name').textContent = who.name || '';
+  $('who-role').textContent = who.role ? ' \u00b7 ' + who.role : '';
+  if (scene.speaker === 'narrator') { $('who-name').textContent = ''; $('who-role').textContent = ''; }
+
+  // Stage: either a media slot or the chart.
+  const isMedia = scene.stage === 'media';
+  $('media').hidden = !isMedia;
+  $('chart').style.visibility = isMedia ? 'hidden' : 'visible';
+  if (isMedia) {
+    const build = MEDIA[scene.media];
+    $('media').innerHTML = build ? build()
+      : `<div class="media-empty">Media slot<b>${scene.media || 'none declared'}</b></div>`;
+  }
+
+  const paint = () => {
+    if (!isMedia) renderChart(scene.stage === 'chart.compare');
+    paintWager();
+    paintLines(scene);
+    paintActions(scene);
+  };
+
+  if (scene.stage === 'chart.autoplay' && typeof scene.autoplay_to === 'number') {
+    if (typeof scene.at_bar === 'number') setBar(scene.at_bar);
+    paintLines(scene); $('actions').textContent = '';
+    autoplayTo(scene.autoplay_to, () => { paintActions(scene); paintWager(); });
+    return;
+  }
+  if (typeof scene.at_bar === 'number') setBar(scene.at_bar);
+  paint();
+}
+
+function paintLines(scene) {
+  const host = $('lines');
+  host.textContent = '';
+  resolveLines(scene).forEach((line, i) => {
+    const p = document.createElement('p');
+    p.textContent = line;
+    if (!REDUCE) { p.classList.add('pending'); setTimeout(() => p.classList.remove('pending'), 90 + i * 260); }
+    host.appendChild(p);
+  });
+  const aside = $('aside');
+  aside.hidden = !scene.next;
+  if (scene.next) aside.textContent = scene.next;
+
+  const facts = $('facts');
+  facts.textContent = '';
+  facts.hidden = !scene.facts;
+  for (const [label, key] of Object.entries(scene.facts || {})) {
+    const got = FACTS[key] ? FACTS[key]() : { v: '—' };
+    const el = document.createElement('span');
+    el.className = 'fact';
+    if (got.d) el.dataset.dir = got.d;
+    el.append(label + ' ', Object.assign(document.createElement('b'), { textContent: got.v }));
+    facts.appendChild(el);
+  }
+}
+
+function go(id) { showScene(id); }
+
+function paintActions(scene) {
+  const host = $('actions');
+  host.textContent = '';
+  const respond = scene.respond || {};
+
+  if (respond.type === 'continue') {
+    host.appendChild(button(respond.label || 'Continue', 'btn', () => go(nextScene(GRAPH, scene.id))));
+    if (scene.kind === 'interstitial' && scene.skippable !== false) {
+      host.appendChild(button('Skip', 'btn btn-ghost', () => go(nextScene(GRAPH, scene.id))));
+    }
+    return;
+  }
+
+  if (respond.type === 'choice') {
+    if (respond.prompt) {
+      const p = document.createElement('p');
+      p.style.cssText = 'flex:1 1 100%;margin:0 0 2px;font-size:13px;color:var(--text-3)';
+      p.textContent = respond.prompt;
+      host.appendChild(p);
+    }
+    for (const opt of respond.options) {
+      const b = button(opt.label, 'opt', () => choose(scene, opt));
+      // A withdrawal she cannot afford is refused up front and says why,
+      // rather than failing after she commits. Same rule as the server's
+      // 409 CANNOT_WITHDRAW.
+      const need = (opt.effect || {}).withdraw;
+      if (need && S.cash < need) {
+        b.disabled = true;
+        const s = document.createElement('small');
+        s.textContent = `You have ${usd(S.cash)} in cash. The rest is in shares.`;
+        b.appendChild(s);
+      }
+      host.appendChild(b);
+    }
+    return;
+  }
+
+  if (respond.type === 'size') { paintSizer(scene, respond); return; }
+
+  if (respond.type === 'ending') {
+    host.appendChild(button(respond.label || 'Finish', 'btn', showEnding));
+    return;
+  }
+}
+
+function button(label, cls, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = cls; b.textContent = label;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function choose(scene, opt) {
+  const key = `${scene.id}:${opt.id}`;
+  if (ORDER_ON_CHOICE[key]) order(ORDER_ON_CHOICE[key]);
+
+  const [flags, effect] = applyChoice(GRAPH, scene.id, opt.id, S.flags);
+  if (effect.withdraw) {
+    if (S.cash < effect.withdraw) throw new StoryError('CANNOT_WITHDRAW', 'Not enough cash.');
+    S.cash = r2(S.cash - effect.withdraw);
+  }
+  if (effect.deposit) S.cash = r2(S.cash + effect.deposit);
+  S.flags = flags;
+  go(nextScene(GRAPH, scene.id, opt.id));
+}
+
+/* The sizing control. Chapter 3 is the decision that quietly settles
+   whether Chapter 4 is survivable, so it gets a real control, not a
+   three-way multiple choice. */
+function paintSizer(scene, respond) {
+  const host = $('actions');
+  let qty = 2;
+  const px = priceOf(respond.symbol, S.bar);
+  const wrap = document.createElement('div');
+  wrap.className = 'sizer';
+  wrap.style.flex = '1 1 100%';
+
+  const prompt = document.createElement('p');
+  prompt.style.cssText = 'margin:0;font-size:13px;color:var(--text-3)';
+  prompt.textContent = respond.prompt;
+
+  const row = document.createElement('div');
+  row.className = 'sizer-row';
+  const stepper = document.createElement('div');
+  stepper.className = 'stepper';
+  const out = document.createElement('output');
+  const read = document.createElement('p');
+  read.className = 'sizer-read';
+  const warn = document.createElement('p');
+  warn.className = 'sizer-warn';
+
+  const refresh = () => {
+    out.textContent = qty;
+    const spend = r2(qty * px), left = r2(START_CAPITAL - spend);
+    read.innerHTML = '';
+    read.append('Costs ', b(usd(spend)), ' · leaves ', b(usd(left)), ' in cash');
+    warn.textContent = spend > START_CAPITAL * 0.75
+      ? 'More than three quarters of the hundred in one company.'
+      : qty === 0 ? 'Nothing invested. The line will move without you.' : '';
+  };
+  const b = t => Object.assign(document.createElement('b'), { textContent: t });
+
+  const dec = button('−', '', () => { qty = Math.max(0, qty - 1); refresh(); });
+  const inc = button('+', '', () => { qty = Math.min(respond.max, qty + 1); refresh(); });
+  dec.setAttribute('aria-label', 'One fewer share');
+  inc.setAttribute('aria-label', 'One more share');
+  stepper.append(dec, out, inc);
+
+  const confirm = button('Lock it in', 'btn', () => {
+    if (qty > 0) order({ side: 'BUY', symbol: respond.symbol, qty });
+    go(respond.goto);
+  });
+
+  row.append(stepper, read);
+  wrap.append(prompt, row, warn, confirm);
+  host.appendChild(wrap);
+  refresh();
+}
+
+/* =======================================================================
+   ENDING
+   ======================================================================= */
+function showEnding() {
+  S.ended = true;
+  const { computed: c, flags } = snapshot();
+  const ending = chooseEnding(ENDINGS, c, flags);
+
+  $('stage').hidden = true;
+  $('s-end').hidden = false;
+  $('end-kicker').textContent = `Ending ${ending.priority} of 6`;
+  $('end-title').textContent = ending.title;
+
+  const lines = $('end-lines');
+  lines.textContent = '';
+  for (const l of ending.lines) lines.appendChild(Object.assign(document.createElement('p'), { textContent: l }));
+  $('end-next').textContent = ending.next;
+  $('end-coda').textContent = 'Nia: ' + ending.coach_coda;
+
+  const ledger = $('end-ledger');
+  ledger.textContent = '';
+  const rows = [
+    ['Final account', usd(c.equity), true],
+    ['Lowest it ever got', usd(c.worst_equity_seen), false],
+    ['Against the start', signedUsd(c.equity - START_CAPITAL) + ` (${c.equity_pct >= 0 ? '+' : '−'}${Math.abs(c.equity_pct).toFixed(2)}%)`, false],
+    ['Trades you made', String(c.trade_count), false],
+    ['Things you owned', String(c.position_count), false],
+  ];
+  if (flags.size) rows.push(['What the story noticed', [...flags].join(', ').replace(/_/g, ' '), false]);
+  for (const [k, v, key] of rows) {
+    const row = document.createElement('div');
+    row.className = 'ledger-row';
+    if (key) row.dataset.key = 'true';
+    row.append(Object.assign(document.createElement('span'), { textContent: k }),
+               Object.assign(document.createElement('b'), { textContent: v }));
+    ledger.appendChild(row);
+  }
+  $('end-fine').textContent =
+    'Prices here are simulated, not real market history. No score was kept at any point: ' +
+    'the ending you reached is not ranked above the others by how much money you finished with.';
+}
+
+/* =======================================================================
+   CONTENT CHECKS — STORY.md section 9, run in the browser.
+
+   Same seven tests the Python suite is specified to run, against the same
+   content the story plays. A writer editing a scene can see immediately
+   whether they made an ending unreachable, which is the failure mode that
+   otherwise goes unnoticed until a judge finds it.
+   ======================================================================= */
+function simulate({ aur = 0, orb = false, withdraw = 0, sellAtTrough = false }) {
+  let cash = START_CAPITAL, held = 0, orbHeld = 0, cost = 0, trades = 0;
+  if (aur > 0) { const spend = aur * priceOf('AUR', ENTRY_BAR); cash -= spend; cost = spend; held = aur; trades++; }
+  const atTrough = cash + held * priceOf('AUR', TROUGH_BAR);
+  if (sellAtTrough && held) { cash += held * priceOf('AUR', TROUGH_BAR); held = 0; trades++; }
+  if (withdraw) cash -= withdraw;
+  if (orb) { cash -= priceOf('ORB', 78); orbHeld = 1; trades++; }
+  return { atTrough: r2(atTrough), cost: r2(cost), trades,
+    final: r2(cash + held * priceOf('AUR', LAST_BAR) + orbHeld * priceOf('ORB', LAST_BAR)) };
+}
+
+function runChecks() {
+  const results = [];
+  const ok = (name, pass, detail) => results.push({ name, pass, detail });
+  const nodes = GRAPH.nodes;
+  const ids = Object.keys(nodes);
+
+  const gotos = new Set([GRAPH.start]);
+  for (const n of Object.values(nodes)) {
+    const r = n.respond || {};
+    if (r.goto) gotos.add(r.goto);
+    for (const o of r.options || []) if (o.goto) gotos.add(o.goto);
+  }
+
+  // 1 · every ending is reachable
+  const mk = (equity, tradeCount, flagList) => [
+    compute(equity, 0, Array(tradeCount).fill(0), [], equity), new Set(flagList)];
+  const probes = [[130, 3, ['went_all_in']], [112, 3, []], [95, 4, ['panicked_at_trough']],
+                  [100, 0, []], [85, 2, []], [100, 2, []]];
+  const fired = new Set(probes.map(p => chooseEnding(ENDINGS, ...mk(...p)).id));
+  const missing = ENDINGS.filter(e => !fired.has(e.id)).map(e => e.id);
+  ok('Every ending is reachable', missing.length === 0,
+    missing.length ? 'never fires: ' + missing.join(', ') : `${fired.size} of ${ENDINGS.length} reached`);
+
+  // 2 · no unreachable scenes
+  const orphans = ids.filter(id => !gotos.has(id));
+  ok('No unreachable scenes', orphans.length === 0,
+    orphans.length ? orphans.join(', ') : `${ids.length} scenes, all linked`);
+
+  // 3 · no dead ends
+  const dead = ids.filter(id => {
+    const r = nodes[id].respond || {};
+    if (r.type === 'ending') return false;
+    if (r.type === 'choice') return !(r.options || []).length || r.options.some(o => !o.goto);
+    return !r.goto;
+  });
+  ok('No dead ends', dead.length === 0, dead.length ? dead.join(', ') : 'every scene has a way out');
+
+  // 4 · every media slot declared exactly once and registered
+  const slots = ids.map(id => nodes[id].media).filter(Boolean);
+  const dupes = slots.filter((s, i) => slots.indexOf(s) !== i);
+  const unregistered = [...new Set(slots)].filter(s => !MEDIA[s]);
+  // slot:arrival is intentionally shared by the interstitial and Vela's offer:
+  // one continuous shot, two scenes.
+  const allowedRepeat = new Set(['slot:arrival']);
+  const badDupes = [...new Set(dupes)].filter(s => !allowedRepeat.has(s));
+  ok('Media slots declared once and registered', badDupes.length === 0 && unregistered.length === 0,
+    badDupes.length ? 'repeated: ' + badDupes.join(', ')
+      : unregistered.length ? 'no renderer: ' + unregistered.join(', ')
+      : `${new Set(slots).size} slots, all registered`);
+
+  // 5 · every interstitial is skippable
+  const trapped = ids.filter(id => nodes[id].kind === 'interstitial' && nodes[id].skippable !== true);
+  ok('Every interstitial is skippable', trapped.length === 0,
+    trapped.length ? trapped.join(', ') : 'no scene can trap the player');
+
+  // 6 · conditions only reference fields that exist
+  let condErr = null;
+  const probe = compute(100, 100, [], [], 100);
+  for (const e of ENDINGS) { try { matches(e.when, probe, new Set()); } catch (err) { condErr = `${e.id}: ${err.code}`; break; } }
+  ok('Conditions reference only known flags and fields', !condErr, condErr || 'all conditions resolve');
+
+  // 7 · the wish is reachable through a sizing choice that also survives the drop
+  const half = simulate({ aur: 2, orb: true });
+  const wishOk = half.final >= WISH_LINE && half.atTrough > BUST_LINE;
+  ok('The wish is reachable without going all in', wishOk,
+    `half in + diversified: ${usd(half.atTrough)} at the trough, ${usd(half.final)} at the end`);
+
+  // 8 · the checkpoint table holds (STORY.md section 2)
+  const allIn = simulate({ aur: 4 }), toe = simulate({ aur: 1 });
+  const tableOk = allIn.atTrough <= BUST_LINE && half.atTrough > BUST_LINE && toe.atTrough > BUST_LINE;
+  ok('All-in busts at the checkpoint, smaller sizes survive', tableOk,
+    `all in ${usd(allIn.atTrough)} · half ${usd(half.atTrough)} · a toe ${usd(toe.atTrough)}`);
+
+  return results;
+}
+
+function paintChecks() {
+  const body = $('checks-body');
+  body.textContent = '';
+  let pass = 0;
+  for (const r of runChecks()) {
+    if (r.pass) pass++;
+    const row = document.createElement('div');
+    row.className = 'check';
+    row.dataset.ok = String(r.pass);
+    row.append(Object.assign(document.createElement('span'), { className: 'check-tag', textContent: r.pass ? 'PASS' : 'FAIL' }),
+               Object.assign(document.createElement('span'), { textContent: r.name }),
+               Object.assign(document.createElement('span'), { className: 'check-detail', textContent: r.detail }));
+    body.appendChild(row);
+  }
+  const sum = document.createElement('p');
+  sum.style.cssText = 'margin:12px 0 0;font-size:12px;color:var(--text-3)';
+  sum.textContent = `${pass} of 8 checks pass. These mirror server/tests/test_story.py and run against the content this page is playing.`;
+  body.appendChild(sum);
+}
+
+/* =======================================================================
+   PROLOGUE + WIRING
+   ======================================================================= */
+function paintStat() {
+  const fig = $('stat-figure'), src = $('stat-source');
+  if (STAT.figure) { fig.textContent = STAT.figure; fig.hidden = false; }
+  else fig.hidden = true;
+  $('stat-claim').textContent = STAT.claim;
+  if (STAT.source) { src.textContent = STAT.source; src.classList.remove('unset'); }
+  else {
+    src.classList.add('unset');
+    src.textContent = 'No source set. Put a figure you can cite in STAT at the top of the script — an invented statistic is the fastest way to lose a judge who checks.';
+  }
+}
+
+$('stat-next').addEventListener('click', () => { $('s-stat').hidden = true; $('s-exp').hidden = false; });
+
+document.querySelectorAll('#s-exp .choice').forEach(b => b.addEventListener('click', () => {
+  S.experience = b.dataset.exp;
+  $('s-exp').hidden = true; $('s-name').hidden = false;
+  $('name-input').focus();
+}));
+
+(function buildAvatars() {
+  const host = $('avatars');
+  AVATARS.forEach((svg, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.innerHTML = svg;
+    b.setAttribute('aria-label', `Mark ${i + 1}`);
+    b.setAttribute('aria-pressed', String(i === 0));
+    b.addEventListener('click', () => {
+      S.avatar = i;
+      [...host.children].forEach((c, j) => c.setAttribute('aria-pressed', String(i === j)));
+    });
+    host.appendChild(b);
+  });
+})();
+
+$('name-next').addEventListener('click', () => {
+  S.name = $('name-input').value.trim();
+  $('s-name').hidden = true;
+  $('stage').hidden = false;
+  showScene(GRAPH.start);
+});
+$('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('name-next').click(); });
+
+$('open-checks').addEventListener('click', () => { paintChecks(); $('checks').hidden = false; });
+$('end-checks').addEventListener('click', () => { paintChecks(); $('checks').hidden = false; });
+$('close-checks').addEventListener('click', () => { $('checks').hidden = true; });
+$('end-again').addEventListener('click', () => location.reload());
+
+// Enter or the right arrow advances, when there is exactly one way forward.
+addEventListener('keydown', e => {
+  if (!$('checks').hidden || $('stage').hidden) return;
+  if (e.key !== 'Enter' && e.key !== 'ArrowRight') return;
+  const btns = [...$('actions').querySelectorAll('button:not(:disabled)')];
+  if (btns.length === 1) { e.preventDefault(); btns[0].click(); }
+});
+
+let rRAF = null;
+new ResizeObserver(() => {
+  cancelAnimationFrame(rRAF);
+  rRAF = requestAnimationFrame(() => {
+    if ($('stage').hidden || !$('media').hidden) return;
+    renderChart(getScene(GRAPH, S.scene).stage === 'chart.compare');
+  });
+}).observe($('viewport'));
+
+/* ---------- boot ---------- */
+paintStat();
+</script>
+</body>
+</html>
