@@ -17,21 +17,19 @@ web/scenes/*.json. Nothing here is ever eval'd: a condition is data, so a writer
 can edit content files without being able to execute code.
 """
 
-WISH_LINE = 110.0        # Vela grants a wish at or above this
-BUST_LINE = 90.0         # Vela reclaims the money at or below this
 START_CAPITAL = 100.0
 
 # Flags a choice may set. Anything outside this set is a typo and is rejected loudly,
 # because a misspelled flag would silently make an ending unreachable.
 KNOWN_FLAGS = frozenset({
     "panicked_at_trough", "held_through_drop", "overtraded", "went_all_in",
-    "diversified", "took_money_out", "held_the_line", "refused_the_wish",
+    "diversified", "took_money_out", "held_the_line",
 })
 
 # Fields computed from the portfolio. Never stored, so they cannot drift.
 KNOWN_COMPUTED = frozenset({
     "equity", "equity_pct", "cash", "trade_count", "position_count",
-    "worst_equity_seen", "vs_wish", "vs_bust", "start_capital",
+    "worst_equity_seen", "start_capital",
 })
 
 # Effects a choice may apply to the real portfolio. The engine only NAMES them; main.py
@@ -74,8 +72,6 @@ def compute(equity, cash, trades, positions, worst_equity_seen, start_capital=ST
         "trade_count": len(trades),
         "position_count": len(positions),
         "worst_equity_seen": round(min(worst_equity_seen, equity), 2),
-        "vs_wish": round(equity - start_capital * 1.10, 2),
-        "vs_bust": round(equity - start_capital * 0.90, 2),
         "start_capital": round(start_capital, 2),
     }
 
@@ -232,18 +228,3 @@ def choose_ending(endings, computed, flags):
         if matches(ending.get("when"), computed, flags):
             return ending
     raise StoryError("NO_ENDING", "No ending matched. One ending must be a catch-all.")
-
-
-def wager_state(computed):
-    """Where she stands against Vela's two lines, scaled to this session's capital."""
-    equity = computed["equity"]
-    WISH = round(computed["start_capital"] * 1.10, 2)
-    BUST = round(computed["start_capital"] * 0.90, 2)
-    return {
-        "wish_line": WISH,
-        "bust_line": BUST,
-        "equity": equity,
-        "above_wish": equity >= WISH,
-        "below_bust": equity <= BUST,
-        "verdict": "wish" if equity >= WISH else ("bust" if equity <= BUST else "open"),
-    }

@@ -106,11 +106,11 @@ def test_the_visible_scene_carries_the_media_slot_and_no_internals():
 def test_every_ending_is_reachable():
     """An ending nobody can ever reach is dead content. Each must fire for some state."""
     cases = {
-        "hollow_wish": (state(120), {"went_all_in"}),
-        "wish_granted": (state(120), set()),
+        "lucky_run": (state(120), {"went_all_in"}),
+        "patient_gain": (state(120), set()),
         "the_panic": (state(95), {"panicked_at_trough"}),
-        "untouched_hundred": (state(100, trades=0), set()),
-        "cost_of_certainty": (state(85, trades=3), set()),
+        "untouched": (state(100, trades=0), set()),
+        "real_loss": (state(85, trades=3), set()),
         "steady_hand": (state(102, trades=3), set()),
     }
     for expected, (computed, flags) in cases.items():
@@ -119,9 +119,9 @@ def test_every_ending_is_reachable():
 
 
 def test_priority_order_decides_when_two_endings_both_match():
-    """+10% reached by going all in is the hollow wish, not the clean one."""
+    """A +10% finish reached by going all in is the lucky run, not the patient one."""
     got = story.choose_ending(ENDINGS["endings"], state(130), {"went_all_in"})
-    assert got["id"] == "hollow_wish"
+    assert got["id"] == "lucky_run"
 
 
 def test_there_is_always_an_ending():
@@ -130,20 +130,13 @@ def test_there_is_always_an_ending():
     assert got["id"] == "steady_hand"
 
 
-def test_every_ending_has_words_for_both_characters():
+def test_every_ending_has_copy_and_a_coda():
     for e in ENDINGS["endings"]:
-        assert e["lines"] and e["next"], f"{e['id']} has no Vela copy"
-        assert e["coach_coda"], f"{e['id']} has no coda from Nia"
+        assert e["lines"] and e["next"], f"{e['id']} has no copy"
+        assert e["coach_coda"], f"{e['id']} has no coda"
 
 
-# ------------------------------------------------------------------ the wager
-
-@pytest.mark.parametrize("equity,verdict", [(110.0, "wish"), (125.0, "wish"),
-                                            (90.0, "bust"), (82.48, "bust"),
-                                            (100.0, "open"), (109.99, "open")])
-def test_the_wager_verdict(equity, verdict):
-    assert story.wager_state(state(equity))["verdict"] == verdict
-
+# ------------------------------------------------------------------ derived flags
 
 def test_derived_flags():
     assert "overtraded" in story.derive_flags(state(100, trades=7), [None] * 7, [], False)

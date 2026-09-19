@@ -1,91 +1,88 @@
 {
-  "wager": {
-    "start_capital": 100.0,
-    "wish_line": 110.0,
-    "bust_line": 90.0,
-    "offer": "One hundred dollars. It was never yours, so you cannot truly lose it. Grow it by a tenth and I grant you one wish. Lose a tenth and I take it back, and you keep nothing but what you learned. Which, I suspect, you will undervalue."
-  },
+  "note": "Six ways a replay can end, decided server-side from what she actually did. Ordered by priority; the first match wins. Deliberately NOT ranked by money - 'steady_hand' is the catch-all and is written as the best outcome, because sitting still through a drop is the skill. Nia narrates all six; there is no score and no prize.",
   "endings": [
     {
-      "id": "hollow_wish",
+      "id": "lucky_run",
       "priority": 1,
-      "title": "The Hollow Wish",
+      "title": "A Lucky Run",
       "when": { "all": [
-        { "computed": "equity", "gte": 110 },
+        { "computed": "equity_pct", "gte": 10 },
         { "any": [ { "flag": "went_all_in" }, { "flag": "overtraded" } ] }
       ]},
-      "speaker": "vela",
+      "speaker": "coach",
       "lines": [
-        "You cleared my line. A wish, then, as promised.",
-        "Though I notice you got there by putting everything on one number and holding your breath."
+        "You finished up more than ten percent. That's a real result and you should enjoy it.",
+        "I do want to name how you got there, though: you put nearly everything on one company and held your breath."
       ],
-      "next": "You got lucky. Luck is not a method, and it does not come twice. Spend the wish carefully.",
-      "coach_coda": "She's not wrong, and she's not being kind about it. You won this one. Next time the same move costs you."
+      "next": "That worked this time. It is not a method, and it does not come twice in a row. Try the same run at half the size and see how different it feels.",
+      "coach_coda": "Getting a good result from a risky process is the most dangerous way to learn, because it teaches you the wrong lesson."
     },
     {
-      "id": "wish_granted",
+      "id": "patient_gain",
       "priority": 2,
-      "title": "The Wish Granted",
-      "when": { "computed": "equity", "gte": 110 },
-      "speaker": "vela",
+      "title": "Patience Paid",
+      "when": { "computed": "equity_pct", "gte": 10 },
+      "speaker": "coach",
       "lines": [
-        "You cleared my line, and you did it without flinching or gambling.",
-        "Name your wish."
+        "You finished up more than ten percent, and you did it without panicking or piling in.",
+        "You sized the position so a bad week could not hurt you, and then you left it alone."
       ],
-      "next": "Take your time. I find the people who earn these ask for smaller things than the ones who don't.",
+      "next": "That is the whole method. It is unglamorous and it repeats, which is exactly why it works.",
       "coach_coda": "You did that with a plan, not a hunch. That's the part that repeats."
     },
     {
       "id": "the_panic",
       "priority": 3,
-      "title": "The Panic",
+      "title": "Sold At The Bottom",
       "when": { "flag": "panicked_at_trough" },
-      "speaker": "vela",
+      "speaker": "coach",
       "lines": [
-        "You sold at the lowest point on the board. I'll take what's left.",
-        "Watch, though. This is what the days after looked like."
+        "You sold at the lowest point of the whole replay.",
+        "Look at what the days after that looked like. I'm not showing you this to make you feel bad - I'm showing you because the shape of it is the lesson."
       ],
-      "next": "The dip was temporary. Your decision inside it was not.",
+      "loss": "the difference between where you sold and where it ended",
+      "next": "The dip was temporary. The decision you made inside it was not. Next time, decide what you'll do before the number goes red.",
       "coach_coda": "Everyone does this once. The people who keep investing are the ones who did it once and understood why. You just did."
     },
     {
-      "id": "untouched_hundred",
+      "id": "untouched",
       "priority": 4,
-      "title": "The Untouched Hundred",
+      "title": "Never Started",
       "when": { "computed": "trade_count", "eq": 0 },
-      "speaker": "vela",
+      "speaker": "coach",
       "lines": [
-        "One hundred dollars, exactly as I left it. Not a cent lost.",
-        "Not a thing learned, either."
+        "You finished with exactly what you started with. Not a cent lost.",
+        "Also not a thing learned, and that is the part that actually costs money over a lifetime."
       ],
-      "next": "Keeping every dollar and finding out nothing is the only way to truly lose here. Come back when you want to try.",
-      "coach_coda": "Nothing bad happened. Nothing happened at all. That's the version of this that costs the most over ten years, and nobody ever feels it."
+      "next": "Nothing here can hurt you. Go back and buy one share of anything - the smallest amount you like - just to see what happens.",
+      "coach_coda": "Sitting out feels free. It is the one choice in here with a cost you never see."
     },
     {
-      "id": "cost_of_certainty",
+      "id": "real_loss",
       "priority": 5,
-      "title": "The Cost of Certainty",
-      "when": { "computed": "equity", "lte": 90 },
-      "speaker": "vela",
+      "title": "A Real Loss",
+      "when": { "computed": "equity_pct", "lte": -10 },
+      "speaker": "coach",
       "lines": [
-        "Beneath my line. I'll take it back, as we agreed.",
-        "You held your nerve while it fell, which is more than most manage. It simply fell further."
+        "You finished down more than ten percent. That is a genuine loss and I am not going to dress it up.",
+        "You also held your nerve while it fell, which is more than most people manage. It simply kept falling."
       ],
-      "next": "That happens. It will happen again, and it is not a verdict on you.",
-      "coach_coda": "The money was never yours. What you know now is, and it doesn't go back in her pocket."
+      "loss": "more than a tenth of what you started with",
+      "next": "This happens, it will happen again, and it is not a verdict on you. What changes the outcome next time is the size you choose at the start, not how well you predict.",
+      "coach_coda": "The money here was never real. What you now know about how you react when it drops is."
     },
     {
       "id": "steady_hand",
       "priority": 6,
-      "title": "The Steady Hand",
+      "title": "A Steady Hand",
       "when": null,
-      "speaker": "vela",
+      "speaker": "coach",
       "lines": [
-        "Between my lines. By my terms, nothing happened at all.",
-        "You did not win my wager."
+        "You finished somewhere in the middle. No dramatic win, no damage.",
+        "Which sounds like nothing happened - but you watched a number go red and you did not flinch, and you did not chase it either."
       ],
-      "next": "You did something harder. You did not flinch, and you did not chase. I have no prize for that, which tells you something about my prizes.",
-      "coach_coda": "She's wrong about this one, and she knows it. Sitting still while a number goes red is the whole skill. You have it."
+      "next": "That is the hardest thing in here, and it is the thing that compounds. Most of investing looks exactly like this.",
+      "coach_coda": "Sitting still while a number goes red is the whole skill. You have it."
     }
   ]
 }

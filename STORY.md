@@ -1,5 +1,16 @@
 # Story architecture
 
+> **PARKED — the wager and Vela are not in the build.**
+>
+> The $100 gift, the ±10% wager, the wish, and Vela herself were removed from `main` to keep
+> the first release focused. Nothing was deleted: the full implementation lives on the branch
+> `feature/vela-wager`, which is pushed and can be merged back whenever you want it.
+>
+> **What is still live:** the six endings, now narrated by Nia rather than Vela and framed
+> around what the player did rather than whether she beat a line. Everything below that
+> describes Vela, the wager, checkpoints or the wish is the parked design, kept as the
+> blueprint for bringing it back.
+
 How the narrative layer works, what the backend needs to implement, and where the storyboard (the animation/visual design work) plugs in. **Written so backend work and storyboarding can happen at the same time, by different people, without blocking each other.**
 
 > A note on the role abbreviations used throughout: **B** = backend developer, **F** = frontend developer, **V1** = the person writing dialogue/copy, **V2** = the person handling the pitch, deck, and testing with outside users.

@@ -669,7 +669,7 @@ def _graph(act_id):
 
 @app.get("/api/story")
 async def get_story():
-    """The current scene, the computed state, the flags, and where she stands with Vela."""
+    """The current scene, the computed state and the narrative flags."""
     session = SESSION
     computed, flags = story_state(session)
     scene = None
@@ -677,7 +677,7 @@ async def get_story():
         scene = story.visible(_graph(session.act)["nodes"][session.scene], computed, flags)
         scene["id"] = session.scene
     return {"act": session.act, "scene": scene, "computed": computed,
-            "flags": sorted(flags), "wager": story.wager_state(computed),
+            "flags": sorted(flags),
             "acts": sorted(SCENES)}
 
 
@@ -721,8 +721,7 @@ async def get_story_ending():
         ending = story.choose_ending(ENDINGS["endings"], computed, flags)
     except story.StoryError as e:
         raise ApiError(500, e.code, e.message, **e.extra)
-    return {"ending": ending, "computed": computed, "flags": sorted(flags),
-            "wager": story.wager_state(computed)}
+    return {"ending": ending, "computed": computed, "flags": sorted(flags)}
 
 
 @app.get("/api/coach")
