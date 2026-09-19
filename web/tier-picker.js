@@ -52,13 +52,14 @@ export function renderOnboarding(overlay, { symbols, startingCash, onStart }) {
 
   mount(overlay, h('form', { class: 'modal-card onboarding', onsubmit: submit },
     h('h2', { id: 'obTitle', text: 'Learn what you could lose first' }),
-    h('p', { class: 'modal-body', text: `Most trading apps sell you the upside. Rich-HER shows the downside first. You get ${usd(startingCash)} of pretend money and a price replay where the future is hidden.` }),
+    h('p', { class: 'modal-body', text: 'Most trading apps sell you the upside. Rich-HER shows the downside first. You get pretend money and a price replay where the future is hidden - nothing here is real and nothing can follow you home.' }),
     h('fieldset', {}, h('legend', { text: 'How much have you invested before?' }),
       radio('experience', 'new', true, "I'm brand new", 'Start at Tier 1: Foundation'),
       radio('experience', 'experienced', false, "I've traded before", 'Start at Tier 2: Tactical Protection')),
     h('fieldset', {}, h('legend', { text: 'Pick something to practice on' }),
-      h('div', { class: 'choice-grid' }, symbols.map((s, i) => radio('symbol', s.symbol, i === 0, `${s.symbol} · ${s.volatility} swings`,
-        i === 0 ? `Recommended for the guided walk-through. ${s.blurb}` : s.blurb)))),
+      h('div', { class: 'choice-grid' }, symbols.map((s, i) => radio('symbol', s.symbol, i === 0,
+        `${s.symbol} · ${usd(s.start_cash ?? startingCash)} to practise with`,
+        i === 0 ? `Recommended. ${s.blurb}` : s.blurb)))),
     h('button', { type: 'submit', id: 'btnStart', class: 'btn btn-primary', text: 'Start the replay' }),
     h('p', { class: 'fineprint', text: 'Prices are synthetic replay data, not real market prices. This is an educational simulator, not financial advice.' })));
   overlay.hidden = false;

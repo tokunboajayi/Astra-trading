@@ -36,7 +36,7 @@ SEED_SEARCH_LIMIT = 20000
 SYMBOLS = [
     {
         "symbol": "HLX", "name": "Helix Devices (synthetic replay)", "volatility": "medium",
-        "blurb": "A steady climb, then a sharp pullback. The guided demo runs on this one.",
+        "blurb": "A steady climb, then a sharp pullback. The deepest drop of the six.",
         "start_cursor": 40, "seed": 1000, "sigma": 0.009, "gap": 0.003, "wick": 0.004,
         "anchors": [(0, 150.00), (40, 168.00), (45, 172.00), (60, 132.96), (89, 158.00)],
     },
@@ -64,7 +64,7 @@ SYMBOLS = [
         # first - so the lesson still lands - then recovers and finishes +25%.
         # Tuned so a half-in position ($42 of $100) just clears the +10% wish line at $110.50.
         "symbol": "NVX", "name": "Novexa Systems (synthetic replay)", "volatility": "medium",
-        "blurb": "Dips early, then climbs. Buy and hold is rewarded on this one.",
+        "blurb": "Dips early, then climbs. Start here: this is the guided walk-through.",
         "start_cursor": 20, "seed": 6000, "sigma": 0.010, "gap": 0.003, "wick": 0.004,
         "start_cash": 100.00,
         "anchors": [(0, 18.50), (20, 21.00), (32, 19.20), (50, 21.40), (70, 24.00), (89, 26.25)],

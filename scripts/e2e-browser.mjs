@@ -144,6 +144,9 @@ try {
   check('every practice symbol is offered', (await $$('#onboarding input[name=symbol]')) === 6);
   check('no external fonts or CDN referenced', !(await ev(`[...document.querySelectorAll('link,script')].some(e => /googleapis|gstatic|cdn\\./.test(e.href || e.src))`)));
   await shot('01-onboarding');
+  // NVX is the pre-selected guided walk-through; this section drives the TIER demo, which
+  // runs on HLX. Pick it explicitly so the test does not depend on the default.
+  await ev(`${q('input[name=symbol][value=HLX]')}.click()`);
   await click('#btnStart');
   await waitFor(`!${q('#app')}.hidden`, 'app visible after onboarding');
   check('cash starts at $10,000.00', (await text('#valCash')) === '$10,000.00', await text('#valCash'));
@@ -282,6 +285,7 @@ try {
     await ev(`fetch('http://127.0.0.1:8000/api/reset', { method: 'POST' }).then(r => r.ok)`);
     await goto('http://127.0.0.1:5500/');
     check('onboarding loads from the static server via CORS', await visible('#onboarding'));
+    await ev(`${q('input[name=symbol][value=HLX]')}.click()`);
     await click('#btnStart');
     await waitFor(`!${q('#app')}.hidden`, 'app on the static server', 10000);
     check('the replay runs across origins', has(await text('#valDay'), 'Day 41 of 90'));

@@ -1,7 +1,7 @@
 {
   "symbol": "NVX",
   "name": "Novexa Systems (synthetic replay)",
-  "blurb": "Dips early, then climbs. Buy and hold is rewarded on this one.",
+  "blurb": "Dips early, then climbs. Start here: this is the guided walk-through.",
   "volatility": "medium",
   "synthetic": true,
   "generator": {

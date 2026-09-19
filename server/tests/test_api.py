@@ -29,7 +29,7 @@ def test_route_table_is_frozen_at_17_live_plus_2_stubs():
 def test_fresh_state_has_no_bars_and_lists_every_symbol(client):
     st = client.get("/api/state").json()
     assert st["onboarded"] is False and st["bars"] == [] and st["cash"] == 10_000.0
-    assert [s["symbol"] for s in st["symbols"]] == ["HLX", "BRD", "BRW", "KIN", "NVX", "VLT"]
+    assert [s["symbol"] for s in st["symbols"]] == ["NVX", "BRD", "BRW", "HLX", "KIN", "VLT"]
 
 
 def test_everything_that_needs_a_replay_says_not_onboarded(client):

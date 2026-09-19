@@ -1,7 +1,7 @@
 {
   "symbol": "HLX",
   "name": "Helix Devices (synthetic replay)",
-  "blurb": "A steady climb, then a sharp pullback. The guided demo runs on this one.",
+  "blurb": "A steady climb, then a sharp pullback. The deepest drop of the six.",
   "volatility": "medium",
   "synthetic": true,
   "generator": {

@@ -44,7 +44,9 @@ def _load(path):
         raise SystemExit(f"Missing {path.relative_to(ROOT)}. Fixtures come from: python scripts/build_fixtures.py")
 
 
-FIXTURES = {p.stem: _load(p) for p in sorted(FIXTURE_DIR.glob("*.json"), key=lambda p: (p.stem != "HLX", p.stem))}
+# NVX sorts first: it is the guided demo, the $100 story account, and the option the
+# onboarding card recommends. Everything else follows alphabetically.
+FIXTURES = {p.stem: _load(p) for p in sorted(FIXTURE_DIR.glob("*.json"), key=lambda p: (p.stem != "NVX", p.stem))}
 if not FIXTURES:
     raise SystemExit("No fixtures in fixtures/. Run: python scripts/build_fixtures.py")
 TIERS = _load(WEB_DIR / "tiers.json")
@@ -53,7 +55,8 @@ COACH = _load(WEB_DIR / "coach.json")
 SCENES = {p.stem: _load(p) for p in sorted((WEB_DIR / "scenes").glob("*.json")) if p.stem != "endings"}
 ENDINGS = _load(WEB_DIR / "scenes" / "endings.json")
 TIER_IDS = [t["id"] for t in TIERS]
-SYMBOLS = [{k: f[k] for k in ("symbol", "name", "blurb", "volatility", "start_cursor")} for f in FIXTURES.values()]
+SYMBOLS = [{**{k: f[k] for k in ("symbol", "name", "blurb", "volatility", "start_cursor")},
+            "start_cash": f.get("start_cash", sim.STARTING_CASH)} for f in FIXTURES.values()]
 
 
 def usd(x):
@@ -318,7 +321,7 @@ def snapshot(session):
 
 class OnboardingReq(BaseModel):
     experience: Literal["new", "experienced"]
-    symbol: str = "HLX"
+    symbol: str = "NVX"
 
 
 class AdvanceReq(BaseModel):
