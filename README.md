@@ -15,20 +15,20 @@
 ## Run it
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
-pip install -r server/requirements.txt
-python -m uvicorn server.main:app --port 8000
+python dev.py setup     # install everything, once
+python dev.py run       # start the app
 ```
 
 Open <http://127.0.0.1:8000>. One process serves the API and the page. **Runs with Wi-Fi off** —
 no CDN, no web fonts, no external requests of any kind.
 
 ```bash
-python -m pytest                          # 192 tests, under a second
-python scripts/build_fixtures.py --check  # fixtures match a fresh build
-node scripts/e2e-browser.mjs              # 59 browser checks (Edge/Chrome, ports 8000 + 5500 free)
+python dev.py test      # 192 tests, under a second
+python dev.py check     # tests + fixtures + browser. Run before committing.
 ```
+
+`dev.py` always uses the project's `.venv`, so you never need to activate anything. New to
+the codebase? [ONBOARDING.md](ONBOARDING.md) has a backend track and a frontend track.
 
 ---
 
