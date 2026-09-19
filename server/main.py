@@ -634,6 +634,29 @@ def _sold_at_worst(session, computed):
     return any(t["side"] == "SELL" for t in session.trades) and         computed["equity"] <= computed["worst_equity_seen"] + 0.01
 
 
+def apply_effect(session, effect):
+    """Move real money for a story choice, e.g. a pressure event's {"withdraw": 40}.
+
+    story_engine names the effect but never applies it - touching the portfolio is I/O and
+    that module stays pure. Unknown keys are rejected there, so anything arriving here is
+    a real effect.
+    """
+    amount = effect.get("withdraw")
+    if amount is not None:
+        if amount > session.cash + sim.EPS:
+            raise ApiError(409, "CANNOT_WITHDRAW",
+                           f"That takes {usd(amount)} but only {usd(session.cash)} is in cash. "
+                           "Sell something first, or choose the other option.",
+                           required=amount, available=round(session.cash, 2))
+        session.cash = round(session.cash - amount, 2)
+        add_event(session, "WITHDRAW", f"Day {session.cursor + 1}: took {usd(amount)} out of the account.")
+
+    amount = effect.get("deposit")
+    if amount is not None:
+        session.cash = round(session.cash + amount, 2)
+        add_event(session, "DEPOSIT", f"Day {session.cursor + 1}: put {usd(amount)} into the account.")
+
+
 def _graph(act_id):
     graph = SCENES.get(act_id)
     if graph is None:
@@ -677,7 +700,8 @@ async def post_story_advance(req: SceneReq):
                        f"{session.scene}.", scene=session.scene)
     try:
         if req.option_id is not None:
-            session.flags, _effect = story.apply_choice(graph, req.scene_id, req.option_id, session.flags)
+            session.flags, effect = story.apply_choice(graph, req.scene_id, req.option_id, session.flags)
+            apply_effect(session, effect)
         session.scene = story.next_scene(graph, req.scene_id, req.option_id)
     except story.StoryError as e:
         raise ApiError(400, e.code, e.message, **e.extra)

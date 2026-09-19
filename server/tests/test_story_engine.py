@@ -150,3 +150,37 @@ def test_derived_flags():
     assert "diversified" in story.derive_flags(state(100, positions=2), [], [{}, {}], False)
     assert "went_all_in" in story.derive_flags(state(100), [], [{"cost": 84.0}], False)
     assert "went_all_in" not in story.derive_flags(state(100), [], [{"cost": 42.0}], False)
+
+
+# ------------------------------------------------------------------ effects
+
+def _graph_with_effect(effect):
+    """A minimal two-scene graph whose one option carries `effect`."""
+    return {"nodes": {
+        "s1": {"respond": {"type": "choice", "options": [
+            {"id": "take", "label": "Take it", "goto": "s2",
+             "sets": ["took_money_out"], "effect": effect}]}},
+        "s2": {"respond": {"type": "continue", "goto": "s3"}},
+    }}
+
+
+def test_a_choice_carries_its_effect_out_to_the_caller():
+    """The engine names the effect; main.py applies it. It must survive the round trip."""
+    flags, effect = story.apply_choice(_graph_with_effect({"withdraw": 40}), "s1", "take", set())
+    assert effect == {"withdraw": 40}
+    assert "took_money_out" in flags
+
+
+def test_an_option_with_no_effect_returns_an_empty_one():
+    graph = {"nodes": {"s1": {"respond": {"type": "choice", "options": [
+        {"id": "keep", "label": "Keep it", "goto": "s2"}]}}}}
+    _flags, effect = story.apply_choice(graph, "s1", "keep", set())
+    assert effect == {}
+
+
+def test_a_typo_in_an_effect_name_fails_loudly():
+    """Silently moving no money is the worst possible failure for a pressure event."""
+    with pytest.raises(story.StoryError) as e:
+        story.apply_choice(_graph_with_effect({"withdaw": 40}), "s1", "take", set())
+    assert e.value.code == "UNKNOWN_EFFECT"
+    assert e.value.extra["effect"] == "withdaw"

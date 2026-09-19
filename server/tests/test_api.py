@@ -261,3 +261,46 @@ def test_one_process_also_serves_the_web_app(client):
     page = client.get("/")
     assert page.status_code == 200 and "text/html" in page.headers["content-type"]
     assert "javascript" in client.get("/app.js").headers["content-type"]
+
+
+def test_a_story_choice_actually_moves_the_money(client, monkeypatch):
+    """A pressure event's {"withdraw": N} must reduce real cash, not just set a flag."""
+    onboard(client, symbol="NVX")
+    before = client.get("/api/state").json()["cash"]
+
+    graph = {"start": "p1", "nodes": {
+        "p1": {"speaker": "narrator", "lines": ["Someone you love needs $40."],
+               "respond": {"type": "choice", "options": [
+                   {"id": "send", "label": "Send the $40", "goto": "p2",
+                    "sets": ["took_money_out"], "effect": {"withdraw": 40}},
+                   {"id": "keep", "label": "Say you can't right now", "goto": "p2",
+                    "sets": ["held_the_line"]}]}},
+        "p2": {"speaker": "narrator", "lines": ["Okay."],
+               "respond": {"type": "continue", "goto": "act5.open"}}}}
+    monkeypatch.setitem(main.SCENES, "pressure", graph)
+
+    client.post("/api/story/start", params={"act_id": "pressure"})
+    r = client.post("/api/story/advance", json={"scene_id": "p1", "option_id": "send"})
+    assert r.status_code == 200, r.text
+
+    after = client.get("/api/state").json()["cash"]
+    assert after == round(before - 40, 2), "the withdraw effect did not move the money"
+    assert "took_money_out" in r.json()["flags"]
+    assert any(e["type"] == "WITHDRAW" for e in client.get("/api/state").json()["events"])
+
+
+def test_withdrawing_more_than_the_cash_is_refused_kindly(client, monkeypatch):
+    onboard(client, symbol="NVX")
+    graph = {"start": "p1", "nodes": {
+        "p1": {"speaker": "narrator", "lines": ["A very large bill."],
+               "respond": {"type": "choice", "options": [
+                   {"id": "pay", "label": "Pay it", "goto": "p2", "effect": {"withdraw": 9999}}]}},
+        "p2": {"speaker": "narrator", "lines": ["."], "respond": {"type": "continue", "goto": "act5.open"}}}}
+    monkeypatch.setitem(main.SCENES, "pressure", graph)
+
+    client.post("/api/story/start", params={"act_id": "pressure"})
+    r = client.post("/api/story/advance", json={"scene_id": "p1", "option_id": "pay"})
+    assert r.status_code == 409
+    body = r.json()
+    assert body["error"] == "CANNOT_WITHDRAW"
+    assert "$100.00" in body["message"]        # tells her what she actually has

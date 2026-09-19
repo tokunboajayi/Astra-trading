@@ -316,7 +316,7 @@ Three new routes. Everything else is unchanged.
 
 | Route | Body | Returns |
 |---|---|---|
-| `GET /api/story` | — | `{scene, chapter, computed, flags, media, can_skip}` |
+| `GET /api/story` | — | `{act, scene, computed, flags, wager, acts}` |
 | `POST /api/story/advance` | `{scene_id}` | `{scene, state}` — next beat |
 | `POST /api/story/choice` | `{scene_id, option_id}` | `{scene, state, effects_applied}` |
 
@@ -327,6 +327,17 @@ Rules that mirror the existing architecture:
 - **Scene transitions are recorded in `replay_log`**, so restart-recovery keeps working.
 - **Checkpoints evaluate server-side.** The browser never decides whether she busted.
 - **`story_engine.py` stays pure.** `main.py` owns the session; the engine owns the rules.
+
+### Status: built
+
+`server/story_engine.py`, the five routes, `web/scenes/act4.json`, `web/scenes/endings.json`
+and `web/coach.json` all exist and are tested (197 tests). Choice effects move real money —
+`{"withdraw": 40}` reduces cash and is refused with `409 CANNOT_WITHDRAW` when she cannot
+afford it. An unknown effect or flag name raises rather than silently doing nothing.
+
+**What remains is content, not code:** Acts 1, 2, 3, 5 and 6, the prologue's four screens,
+Vela's checkpoint scenes and the interstitials are all unwritten. Each is a JSON file
+following the Act 4 shape — no Python changes needed for any of them.
 
 ### Files to add
 

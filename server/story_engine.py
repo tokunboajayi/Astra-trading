@@ -34,6 +34,12 @@ KNOWN_COMPUTED = frozenset({
     "worst_equity_seen", "vs_wish", "vs_bust", "start_capital",
 })
 
+# Effects a choice may apply to the real portfolio. The engine only NAMES them; main.py
+# applies them, because touching money is I/O and this file stays pure. An effect outside
+# this set is a typo and is rejected loudly - otherwise a pressure event would set its flag
+# and silently move no money, which is very hard to debug from the content side.
+KNOWN_EFFECTS = frozenset({"withdraw", "deposit"})
+
 OPERATORS = {
     "eq": lambda a, b: a == b,
     "neq": lambda a, b: a != b,
@@ -183,7 +189,12 @@ def apply_choice(graph, scene_id, option_id, flags):
                 if name not in KNOWN_FLAGS:
                     raise StoryError("UNKNOWN_FLAG", f"Option sets unknown flag {name!r}.", flag=name)
                 new.add(name)
-            return new, opt.get("effect") or {}
+            effect = opt.get("effect") or {}
+            for key in effect:
+                if key not in KNOWN_EFFECTS:
+                    raise StoryError("UNKNOWN_EFFECT", f"Option declares unknown effect {key!r}.",
+                                     effect=key, known=sorted(KNOWN_EFFECTS))
+            return new, effect
     raise StoryError("UNKNOWN_OPTION", f"No option {option_id!r} on {scene_id}.", scene_id=scene_id)
 
 
