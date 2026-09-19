@@ -1,0 +1,28 @@
+# Render's free instance sleeps after a stretch of no traffic and takes roughly a minute
+# to wake. A judge who clicks the link and stares at a blank tab for 50 seconds is gone.
+# This keeps it warm, and doubles as uptime monitoring: a failed run emails the repo.
+name: keep the demo awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}        # so you can also hit it by hand before judging
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping rich-her.tech
+        run: |
+          # "/" serves index.html and touches no session. An /api/* path would mint a
+          # throwaway session on every ping and push real visitors out of SESSIONS,
+          # which is capped at 200 (server/main.py).
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                   --max-time 120 --retry 2 --retry-all-errors \
+                   https://rich-her.tech/)
+          echo "rich-her.tech -> $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::Site did not return 200. It may be asleep, mid-deploy, or broken."
+            exit 1
+          fi
