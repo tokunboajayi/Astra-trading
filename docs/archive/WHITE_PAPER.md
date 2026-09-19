@@ -1,8 +1,6 @@
 # Rich-HER / Astra Trading: White Paper
 
-> **ARCHIVED.** Written against the v3.0 thesis. The current thesis is in
-> [SPEC_3.md](../SPEC_3.md). Useful for the pitch narrative; check any claim against the
-> current spec before using it.
+> **This document is archived.** It was written to support the older v3.0 version of the product's thesis. The current thesis is in [SPEC_3.md](../SPEC_3.md) — check any claim here against that current spec before using it in a pitch. This is still useful for the overall narrative.
 
 **Empowering Financial Autonomy Through Downside-First Risk Literacy and Progressive Simulation**
 
@@ -10,88 +8,88 @@
 
 ## Executive Summary
 
-Traditional retail brokerage and "gamified" trading platforms suffer from a fundamental design flaw: they optimize for transaction volume and dopamine-driven upside bias. For beginners, disproportionately women and historically underserved investors, this creates a dangerous dichotomy between intimidating complexity and reckless speculation.
+Most retail trading apps — including "gamified" ones aimed at beginners — share a fundamental design flaw: they're built to maximize how often people trade, using upside-focused, dopamine-driven design. For beginners, and disproportionately for women and other historically underserved investors, this creates a frustrating choice between two bad options: intimidating complexity, or reckless speculation.
 
-**Rich-HER** (code-named **Astra Trading**) is a pedagogical trading interface built for HackHERS. Instead of enticing users with uncalibrated promises of wealth, Rich-HER pioneers **downside-first risk literacy**. It couples an interactive price replay ("walk into the dip") with progressive complexity tiers and a proactive safety net, turning market intimidation into risk-aware confidence.
-
----
-
-## 1. The Core Problem: The Risk-Literacy and Confidence Gap
-
-1. **The asymmetric learning curve.** Novices are routinely introduced to markets during bull runs or through oversimplified interfaces that obscure mechanics like slippage, volatility and capital preservation.
-2. **Upside-biased framing.** Standard interfaces describe a "Buy" order in terms of ownership and upside while burying downside risk in legal disclaimers. When a correction arrives, beginners panic-sell at local bottoms.
-3. **Interface overload versus toy simulators.** Existing tools offer either wall-of-numbers terminal software (which induces paralysis) or fantasy paper trading in disconnected live time, with no teachable moments on demand.
+**Rich-HER** (code-named **Astra Trading**) is an educational trading interface built for the HackHERS hackathon. Instead of luring people in with unrealistic promises of wealth, Rich-HER is built around **downside-first risk literacy** — leading with what you could lose, not what you could gain. It combines an interactive price replay ("walk into the dip") with a system of gradually unlocking complexity and a safety net that steps in proactively, turning intimidation about the market into risk-aware confidence.
 
 ---
 
-## 2. The Rich-HER Solution: Four Foundational Pillars
+## 1. The core problem: the risk-literacy and confidence gap
 
-### Pillar 1: Downside-first pedagogy
-Every order type, indicator and action leads with its loss profile. Before explaining how an instrument generates return, Rich-HER says what capital is at risk and how the order can fail.
-* *Instead of* "Buy: own shares of Apple and grow your portfolio", *Rich-HER says:* "If the price falls, your shares are worth less right away, and you could lose some or all of the money you put in. Buying swaps your cash for shares."
-* The rule is enforced, not just intended: a test fails if any hint's first field is not the downside or if its downside line names no loss.
+1. **An uneven learning curve.** Beginners are usually introduced to markets either during a bull run (when everything looks easy) or through oversimplified interfaces that hide real mechanics like slippage, volatility, and protecting your capital.
+2. **Framing that leads with upside.** Most trading interfaces describe a "Buy" order purely in terms of ownership and potential gains, burying any mention of downside risk in legal fine print. When a real market correction happens, beginners often panic and sell right at the bottom.
+3. **A gap between overwhelming tools and toy simulators.** Existing options tend to be either professional terminal software (packed with numbers and hard to approach) or disconnected paper-trading apps that run in real time, with no way to create a teachable moment on demand.
 
-### Pillar 2: Deterministic replay ("walk into the dip")
-Live paper trading means weeks of waiting for a meaningful move and an unpredictable demo. Rich-HER replays **deterministic 90-day price paths** that a user advances one day at a time, with the future hidden, so a pullback takes minutes to experience in a safe, guided sandbox.
+---
 
-The paths are **synthetic**. A seeded script generates them, pinned to chosen anchor prices, and the HLX path carries a built-in **−22.7% drawdown** so the teaching moment is guaranteed rather than hoped for. The product labels the data as synthetic everywhere it appears. Fast-forward stops the instant something happens, so a fill or the safety-net prompt can never be skipped.
+## 2. The Rich-HER solution: four foundational ideas
 
-### Pillar 3: Structural progressive complexity (tiers)
-Complex tools are neither hidden nor dumped on day one. Tiers unlock by demonstrating understanding, not by trading more.
+### Idea 1: Lead with the downside
+Every order type, indicator, and action leads by explaining what could be lost. Before explaining how something might generate a return, Rich-HER first says what capital is actually at risk, and how the order could go wrong.
+* *Instead of* "Buy: own shares of Apple and grow your portfolio," *Rich-HER says:* "If the price falls, your shares are worth less right away, and you could lose some or all of the money you put in. Buying trades your cash for shares."
+* This rule is actually enforced by our tests, not just something we intend to follow: a build fails automatically if any hint's first line doesn't lead with the downside, or if that line doesn't name a real loss.
 
-| Tier | Orders | Chart | Unlocked by |
+### Idea 2: A deterministic replay ("walk into the dip")
+Real-time paper trading means waiting weeks for a meaningful price move to happen, and it makes for an unpredictable demo. Instead, Rich-HER replays **fixed, repeatable 90-day price histories** that the user steps through one day at a time, with the future always hidden — so experiencing a real pullback only takes a few minutes, inside a safe, guided environment.
+
+These price paths are **entirely made up.** A script with a fixed random seed generates them, anchored to specific chosen prices, and the HLX path in particular is built to always include a **−22.7% drop**, so the teaching moment is guaranteed rather than hoped for. The product labels this data as synthetic everywhere it shows up on screen. Fast-forward always stops the instant something important happens, so a fill or a safety-net prompt can never accidentally get skipped over.
+
+### Idea 3: Gradually unlocking complexity (tiers)
+Advanced trading tools aren't hidden entirely, but they also aren't dumped on the user all at once on day one. Instead, more complex features unlock by demonstrating understanding — not just by trading more.
+
+| Tier | Order types available | Chart shown | How you unlock it |
 |---|---|---|---|
-| **1 Foundation** | Market | Clean line | Everyone starts here |
-| **2 Tactical Protection** | + Limit; choose your own safety-net distance | Line with the high and low so far | A correct answer to the downside check after your first trade |
-| **3 Strategic Mastery** | + Stop orders | Candlesticks and moving-average signals | A correct answer to the stop-loss check after your first safety net |
+| **1 Foundation** | Market orders only | A simple line | Everyone starts here |
+| **2 Tactical Protection** | + Limit orders; choose your own safety-net distance | Line with the highest and lowest points so far | Answering the downside comprehension question correctly, after your first trade |
+| **3 Strategic Mastery** | + Stop orders | Candlesticks, plus moving-average signal lines | Answering the stop-loss comprehension question correctly, after your first safety-net trigger |
 
-Beginners can use the **tier scrub** to *preview* what they unlock. It is a read-only look at the next tier, not a shortcut past it. Someone who has traded before can start at Tier 2.
+Beginners can use the **tier preview** to look ahead at what they'll eventually unlock — but it's read-only, a preview, not a shortcut past it. Someone who says they've traded before can start directly at Tier 2.
 
-### Pillar 4: The proactive safety net
-When a position is down 8%, Rich-HER intervenes with a one-tap prompt built from the user's own numbers:
+### Idea 4: A safety net that steps in proactively
+When a position drops 8% in value, Rich-HER steps in with a one-tap prompt, built entirely from the user's own real numbers:
 
 > *"Your HLX position is down 8.2%. You bought 10 at $168.00; it is now $154.17, so you are down $138.30. If it falls to $151.20 your shares are sold automatically. If it dips there and bounces back, you will have sold at the bottom."*
 
-The safety net is a **guardrail available at every tier**. Tiers unlock *control over* protection, never the protection itself. After it acts, a **shadow benchmark** compares the outcome with ignoring the net. In the demo replay it saves $182.40 at the trough; if the replay runs on to Day 90 the price recovers and the net has cost $68.00. Showing both is the point: protection has a price.
+The safety net is a **protection available at every tier** — what tiers actually unlock is *control over* that protection (like setting your own percentage), never the protection itself. After it triggers, a **shadow benchmark** shows how the outcome compares to what would have happened if the user had ignored the safety net entirely. In the demo's price data, this saves $182.40 at the lowest point — but if the replay continues all the way to Day 90, the price recovers and the safety net ends up costing $68.00 net instead. Showing both outcomes honestly is the whole point: protection isn't free.
 
 ---
 
-## 3. Measurable Impact and Validation Strategy
+## 3. Measuring impact, and how we'd validate it
 
-Rich-HER measures success by **demonstrated comprehension**, not by trading volume.
+Rich-HER measures success by **demonstrated understanding**, not by how much someone trades.
 
-* **Two built-in checks.** After the first trade: "$1,000 falls 10%; what is it worth?" After the first safety net: "What does a stop-loss do?" Every attempt is logged.
-* **Stranger-QA.** Before judging, 3–5 non-finance people run through the flow. The target is **at least 4 of 5 answering the stop-loss check correctly on the first try**, reported as a pitch line generated from the log: *"4 of 5 first-time users explained how a stop-loss works."*
-* **Zero-jargon order tickets.** 100% of tickets require a Tap-to-Explain review (the downside first, and Confirm locked for 1.5 seconds) before an order can be sent.
-
----
-
-## 4. Technical Architecture Overview
-
-Rich-HER runs entirely on one laptop, with no internet, to keep a live demo from depending on venue Wi-Fi.
-
-* **Client (vanilla JS, SVG, CSS).** No build step and no dependencies; system fonts, nothing loaded from the network.
-* **Server (Python, FastAPI).** One process serves the API and the app. It is the source of truth: every action returns the full new state, and the browser never computes a fill.
-* **Simulation engine (`server/sim_engine.py`).** Pure, deterministic rules for fills, stops and the safety-net trigger, unit-tested without a server and portable to another language.
-* **Recovery.** The browser keeps the server's action log; after a restart it replays the log through the normal routes and the session returns exactly.
-
-Full contract: [SPEC.md](SPEC_v3.0.md).
+* **Two built-in comprehension questions.** After the first trade: "$1,000 falls 10%; what is it worth?" After the first safety-net trigger: "What does a stop-loss do?" Every attempt at answering gets logged.
+* **Testing with strangers.** Before judging, 3–5 people with no finance background go through the whole flow. The target: **at least 4 of 5 correctly explain how a stop-loss works on their first try**, which becomes a pitch line generated automatically from the log: *"4 of 5 first-time users explained how a stop-loss works."*
+* **Zero-jargon order confirmations.** 100% of order tickets require a Tap-to-Explain review (leading with the downside, with the Confirm button locked for 1.5 seconds) before an order can actually be placed.
 
 ---
 
-## 5. Honest Limitations
+## 4. A quick technical overview
 
-A tool that teaches risk should be candid about its own.
+Rich-HER runs entirely on one laptop, with no internet connection needed, so a live demo never depends on venue Wi-Fi working.
 
-* **Synthetic prices.** The replay is not real market history, and real markets are messier.
-* **Idealized fills.** Market orders fill at the day's close. Stops fill at the stop price unless the price gaps through it, and then they fill worse. Real fills also have spreads and slippage.
-* **A small sample.** Three to five testers is a sanity check on whether the teaching works, not a study.
-* **The safety net is not free.** It can sell you out at the bottom, which is why the shadow benchmark reports the cost as honestly as the benefit.
-* **Educational only.** Nothing here is financial advice.
-* **One demo session.** The server keeps a single in-memory session, so a shared hosted link is a place to look around, not a multi-user service.
+* **Client (plain JavaScript, SVG graphics, CSS).** No build step, no external dependencies; uses fonts already on the computer, loads nothing from the network.
+* **Server (Python, FastAPI).** One process handles both the API and serving the app itself. It's the single source of truth — every action returns the complete new state, and the browser never calculates a trade fill on its own.
+* **Simulation engine (`server/sim_engine.py`).** Pure, deterministic rules for fills, stops, and the safety-net trigger — tested without needing a server running at all, and portable to another programming language if needed.
+* **Recovery.** The browser keeps the server's own log of past actions. After a restart, it replays that log through the normal routes, and the session comes back exactly as it was.
+
+Full technical contract: [SPEC.md](SPEC_v3.0.md).
 
 ---
 
-## 6. Vision Beyond HackHERS
+## 5. Being honest about our limitations
 
-Rich-HER points toward **protective fintech**: graduating users from a curated sandbox to real market participation with risk habits already built in. The architecture leaves room for Alpaca paper trading and live data; neither is built. The next step is measuring whether the habits transfer.
+A tool that teaches about risk should also be upfront about its own.
+
+* **Made-up prices.** The replay isn't real market history, and real markets are messier and less predictable than this.
+* **Simplified order fills.** Market orders fill at the day's closing price. Stop orders fill at the stop price, unless the price jumps past it overnight — in which case they fill worse than expected. Real trades also involve spreads and slippage that this doesn't model.
+* **A small sample size.** Testing with three to five people is a basic sanity check on whether the teaching approach works, not a rigorous study.
+* **The safety net isn't free.** It can sell you out right at the bottom of a dip, which is exactly why the shadow benchmark reports the cost as honestly as it reports the benefit.
+* **Educational only.** Nothing in this product is financial advice.
+* **One shared session.** The server keeps a single session in memory, so a hosted link is meant for looking around, not for multiple people using it at once.
+
+---
+
+## 6. Where this could go beyond HackHERS
+
+Rich-HER points toward a broader idea: **protective fintech** — helping people graduate from a guided practice environment to real market participation, with good risk habits already built in. The architecture leaves room for adding real paper trading (through a service like Alpaca) and live market data, though neither is built yet. The next real step would be measuring whether the habits learned here actually carry over.

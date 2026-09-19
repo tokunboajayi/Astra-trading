@@ -1,9 +1,8 @@
 # Rich-HER
 
-**A trading simulator that teaches women to start before they feel ready.** Built for HackHERS.
+**A trading simulator that teaches women to start investing before they feel ready.** Built for HackHERS.
 
-> Hesitation, not ignorance, is the barrier. So there is no "I don't know" button anywhere in
-> this product, no score, and no timer.
+> Hesitation, not ignorance, is the barrier. So there is no "I don't know" button anywhere in this product, no score, and no timer.
 
 <p>
   <img src="docs/demo-desktop.png" alt="Rich-HER after a safety net sold: the money-flow line reports the locked-in loss and the shadow line shows what ignoring the net would have cost" width="62%">
@@ -19,16 +18,16 @@ python dev.py setup     # install everything, once
 python dev.py run       # start the app
 ```
 
-Open <http://127.0.0.1:8000>. One process serves the API and the page. **Runs with Wi-Fi off** —
-no CDN, no web fonts, no external requests of any kind.
+Open <http://127.0.0.1:8000>. One process serves the API and the page. **It runs with Wi-Fi off** — no CDN, no web fonts, no requests to any outside server.
 
 ```bash
-python dev.py test      # 192 tests, under a second
+python dev.py test      # 197 tests, under a second
 python dev.py check     # tests + fixtures + browser. Run before committing.
 ```
 
-`dev.py` always uses the project's `.venv`, so you never need to activate anything. New to
-the codebase? [ONBOARDING.md](ONBOARDING.md) has a backend track and a frontend track.
+`dev.py` always uses the project's own `.venv` (its private copy of Python's packages), so you never need to activate anything yourself.
+
+New to this codebase? [ONBOARDING.md](ONBOARDING.md) has a backend track and a frontend track, each about an hour.
 
 ---
 
@@ -36,72 +35,63 @@ the codebase? [ONBOARDING.md](ONBOARDING.md) has a backend track and a frontend 
 
 | You are | Read | What it gives you |
 |---|---|---|
-| **Building the frontend** | [API.md](API.md) | Every route, the snapshot shape, the error table |
-| **New to this codebase** | [ONBOARDING.md](ONBOARDING.md) | Reading order, Python→JS idioms, a safe first change |
-| **Writing story or copy** | [STORY.md](STORY.md) | Characters, the wager, six endings, the scene schema |
-| **Deciding what to build** | [docs/SPEC_3.md](docs/SPEC_3.md) | The thesis, the principles, the open decisions |
+| **Building the frontend** | [API.md](API.md) | Every route, the shape of the data it returns, the error table |
+| **New to this codebase** | [ONBOARDING.md](ONBOARDING.md) | Reading order, Python→JS translations, a safe first change to make |
+| **Writing story or copy** | [STORY.md](STORY.md) | Characters, the wager, the six endings, the scene format |
+| **Deciding what to build** | [docs/SPEC_3.md](docs/SPEC_3.md) | The thesis, the design rules, what's still undecided |
 | **Designing screens** | [docs/WORKFLOW.md](docs/WORKFLOW.md) | The full user flow, act by act |
 
-Superseded material is in [docs/archive/](docs/archive/), kept for traceability and **not to be
-followed**. `SPEC_v3.0.md` in particular describes an older product — a $10,000 account and a
-downside-first framing — that [docs/SPEC_3.md](docs/SPEC_3.md) replaced.
+Older material that a newer document replaced lives in [docs/archive/](docs/archive/). It's kept so we can see how decisions changed over time — **don't build against it.** `SPEC_v3.0.md` in particular describes an earlier version of the product (a $10,000 account with a "lead with the downside" framing) that [docs/SPEC_3.md](docs/SPEC_3.md) replaced.
 
 ---
 
 ## What actually works right now
 
-Be precise about this, because the designs are further along than the app.
+Worth being precise about, because the design docs describe more than the app currently does.
 
-**Working, demoable, covered by tests:**
+**Working, demoable, and covered by tests:**
 
-- $100 practice account on NVX, $10,000 on the other five fixtures
-- Price replay where the future is hidden, one day at a time
-- Tap-to-Explain order ticket — the downside box, Confirm locked 1.5s
-- The −8% safety net, every number computed from her actual position
-- Fast-forward that stops the instant something happens
-- Three tiers, comprehension checks, the shadow benchmark
-- The whole story layer through the API: scenes, choices, flags, six endings
-- Restart recovery — the browser replays its log and the session returns exactly
+- A $100 practice account on NVX, $10,000 on the other five fixtures (a "fixture" here means one company's 90 days of made-up price data — see below)
+- A price replay where the future stays hidden, one day at a time
+- The Tap-to-Explain order ticket: a box explaining the downside, and the Confirm button locked for 1.5 seconds so you can't click through without reading it
+- The −8% safety net: a prompt that appears when a position drops 8%, with every number computed from your actual trade
+- Fast-forward that stops the instant something happens, so you never blow past an important moment
+- Three difficulty tiers, two comprehension checks, and the "shadow benchmark" (what would have happened if you'd ignored the safety net)
+- The whole story layer, reachable through the API: scenes, choices, flags, six possible endings
+- Restart recovery — if the server restarts, the browser replays its saved log and your session comes back exactly as it was
 
-**Designed but not built as UI** (the API is ready for all of it):
+**Designed, but not yet built as an actual screen** (the API already supports all of it):
 
-- The four opening screens — statistic, experience, name, Vela's arrival
-- Vela's checkpoints and the interstitial animations
-- Acts 1, 2, 3, 5, 6 dialogue — only Act 4 is written
+- The four opening screens: the statistic, the experience question, the name prompt, Vela's arrival
+- Vela's checkpoints and the animated scene transitions between chapters
+- Dialogue for Acts 1, 2, 3, 5, and 6 — only Act 4 is written so far
 
 ---
 
-## The one rule
+## The one rule that explains most design decisions
 
 **The browser never calculates anything about money.**
 
-Not the price, not the fill, not the profit, not the ending. Every action posts to the server,
-the server recalculates everything, and the response carries the complete new state. The
-browser throws away what it had and redraws from that.
+Not the price, not the fill, not the profit, not how the story ends. Every action you take sends a request to the server. The server recalculates everything and sends back the complete new state. The browser throws away what it had and redraws from that.
 
-If you catch yourself writing `price * quantity` in a `.js` file, stop — that number should
-have come from the server.
+If you ever catch yourself writing `price * quantity` in a `.js` file, stop — that number should have come from the server.
 
 ---
 
 ## The companies are fictional
 
-**HLX, BRW, BRD, KIN, NVX and VLT are invented.** Every price is synthetic, generated by
-`scripts/build_fixtures.py`, and every fixture carries `"synthetic": true`. Nothing refers to a
-real listed company, so there is no number anyone can fact-check against a real market — and
-the UI says so on screen.
+**HLX, BRW, BRD, KIN, NVX, and VLT are made up.** Every price is synthetic (computer-generated, not real market data), created by `scripts/build_fixtures.py`. Every fixture file says `"synthetic": true`, and the app says so on screen too. None of it refers to a real listed company — so there's no number anyone could fact-check against the real market.
 
-| Ticker | Company | Account | Character |
+| Ticker | Company | Starting cash | What happens |
 |---|---|---|---|
-| **NVX** | Novexa Systems | **$100** | Dips −10%, ends **+25%**. The story fixture. |
-| HLX | Helix Devices | $10,000 | Steady climb, then a −22.7% pullback. The tier demo. |
+| **NVX** | Novexa Systems | **$100** | Dips −10%, ends **+25%**. This is the story fixture — used in the narrative. |
+| HLX | Helix Devices | $10,000 | Steady climb, then a −22.7% pullback. Used for the tier demo. |
 | BRW | Brightwater Coffee | $10,000 | Slow and steady, ends +3.9% |
-| BRD | Broadline 500 Fund | $10,000 | Broad index, shallow dips |
-| KIN | Kinetic Apparel | $10,000 | Choppy, −14% mid dip |
-| VLT | Voltaic Motors | $10,000 | Big swings, −27.3% |
+| BRD | Broadline 500 Fund | $10,000 | A broad index fund — shallow dips |
+| KIN | Kinetic Apparel | $10,000 | Choppy, with a −14% dip in the middle |
+| VLT | Voltaic Motors | $10,000 | Big swings, ends −27.3% |
 
-Fixtures are **generated, never hand-edited**. `--check` rebuilds them and fails if what is on
-disk differs.
+Fixtures are **generated, never hand-edited.** Running `--check` rebuilds them from scratch and fails loudly if what's on disk doesn't match — that's how we catch someone accidentally editing a data file by hand.
 
 ---
 
@@ -112,62 +102,55 @@ server/
   sim_engine.py        the market maths       - pure, no I/O. Start here.
   story_engine.py      scenes, flags, endings - pure, no I/O
   main.py              routes, session, snapshot()
-  tests/               192 tests
+  tests/               197 tests
 fixtures/*.json        the synthetic market data
 scripts/
-  build_fixtures.py    generates the fixtures (deterministic)
-  e2e-browser.mjs      59 checks in a real browser
+  build_fixtures.py    generates the fixtures (deterministic — same input, same output, always)
+  e2e-browser.mjs      59 checks run in a real browser
 web/
   index.html           the page
-  tokens.css           the design system - use the variables, never a raw hex
+  tokens.css           the design system - use the variables, never a raw hex code
   app.js               browser coordinator
-  coach.json           Coach Nia: persona + pop-out copy
-  scenes/*.json        the story: Act 4, the six endings
+  coach.json           Coach Nia: her persona and pop-out copy
+  scenes/*.json         the story: Act 4, the six endings
 ```
 
-**Content lives in JSON, not code.** `coach.json`, `scenes/*.json`, `tiers.json` and
-`checks.json` hold the words and the rules, and both the server and the browser read them — so
-the screen and the server can never disagree. **You can change wording without touching a
-`.py` or `.js` file.**
+("Pure" means the file does no I/O — no reading files, no network calls, no clock, no randomness. Just plain functions that take input and return output. That makes it easy to test and easy to reason about.)
+
+**Content lives in JSON, not in code.** `coach.json`, `scenes/*.json`, `tiers.json`, and `checks.json` hold the actual words and rules. Both the server and the browser read the same files, so the screen and the server can never disagree with each other. **You can change what the app says without touching a `.py` or `.js` file.**
 
 ---
 
-## The tests are strict about words, on purpose
+## Why the tests are strict about wording
 
-The build fails if content breaks a principle:
+The build fails if the content breaks one of our principles:
 
-- an "I don't know" / skip / unsure option appears anywhere
-- any scoring field appears anywhere
-- a named loss has no next step beside it
-- a drawdown scene has no recovery scene after it
-- a scene is a dead end, or a `goto` dangles
-- **any dollar figure drifts from what the fixture actually produces**
+- an "I don't know" / skip / unsure option shows up anywhere
+- any kind of scoring field shows up anywhere
+- a mentioned loss has no next step suggested alongside it
+- a scene showing a drawdown (a drop in value) has no recovery scene after it
+- a scene is a dead end, or a `goto` (a link to another scene) points nowhere
 
-That last one matters most. The coach quotes exact numbers. If someone regenerates the
-fixtures those numbers move and the demo breaks in front of judges — so it breaks in CI
-instead. If a test complains about your sentence, it is doing its job.
+**And most importantly: any dollar figure drifts from what the fixture data actually produces.** The coach quotes exact numbers on screen. If someone regenerates the fixtures, those numbers can shift — and if that happens during a live demo in front of judges, it's a disaster. Catching it in our automated tests instead means it never reaches a demo.
+
+If a test complains about your sentence, it's doing its job — fix the sentence, not the test.
 
 ---
 
 ## Before you demo
 
-1. **Hit "Reset demo"** between participants, not just a page refresh. A refresh replays the
-   previous session's saved log.
-2. Run on **localhost with Wi-Fi off**. Never present from a hosted URL.
-3. The server holds **one global session** — one presenter at a time.
+1. **Hit "Reset demo"** between participants — don't just refresh the page. A refresh replays the previous session's saved log, so you'll see stale data.
+2. Run on **localhost with Wi-Fi off**. Never present from a hosted URL — venue Wi-Fi is not something to bet a demo on.
+3. The server holds **one global session** — meaning only one person can use it at a time.
 
 ---
 
 ## Known open items
 
-- **The statistic on the opening screen is unverified.** The 63% / 43% figures trace to the
-  *Fearless Woman* research (Bucher-Koenen, Alessie, Lusardi & van Rooij, NBER), but the exact
-  numbers have not been checked against the primary source. **Do not put them on a slide until
-  someone has.**
-- One global session: fine for a demo, wrong for concurrent users.
-- Open orders do not reserve cash, so two orders can each validate against the same money. A
-  later fill is cancelled cleanly, but the user is not warned up front.
-- `docs/archive/` refers to an `OPTIMIZATION_PASS_2.md` that was never committed to this repo.
+- **The statistic on the opening screen is unverified.** The 63% / 43% figures trace back to the *Fearless Woman* research (Bucher-Koenen, Alessie, Lusardi & van Rooij, NBER), but the exact numbers haven't been checked against the original source yet. **Don't put them on a slide until someone has confirmed them.**
+- One global session works fine for a demo, but would be wrong for real, concurrent users.
+- Open orders don't reserve cash, so two orders could both be validated against the same money. A later fill gets cancelled cleanly, but the user isn't warned about this up front.
+- `docs/archive/` refers to an `OPTIMIZATION_PASS_2.md` file that was never actually committed to this repo — so that link won't resolve.
 
 ## License
 

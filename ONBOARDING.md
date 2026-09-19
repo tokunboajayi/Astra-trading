@@ -24,7 +24,7 @@ Then open <http://127.0.0.1:8000>. You should see the app. Press **Ctrl+C** in t
 |---|---|
 | `python dev.py setup` | Install everything. Once. |
 | `python dev.py run` | Start the app. Auto-reloads when you save a `.py` file. |
-| `python dev.py test` | 192 tests, under a second. |
+| `python dev.py test` | 197 tests, under a second. |
 | `python dev.py check` | Everything the build checks. **Run before you commit.** |
 | `python dev.py fixtures` | Regenerate the market data. |
 | `python dev.py reset` | Something broke badly? Wipe it and `setup` again. |
@@ -96,7 +96,7 @@ Four functions carry the whole simulation:
 
 11 of its 13 functions have docstrings. It is the best-explained file in the repo.
 
-**2. `server/story_engine.py`** (238 lines) — same contract, for the narrative. Walks a scene graph, evaluates conditions, picks an ending. Also pure, also testable with no server.
+**2. `server/story_engine.py`** (249 lines) — same contract, for the narrative. Walks a scene graph, evaluates conditions, picks an ending. Also pure, also testable with no server.
 
 Note how conditions are **data, not code**:
 
@@ -108,7 +108,7 @@ Nothing is ever `eval`'d. A writer can edit content files without being able to 
 
 **3. `fixtures/NVX.json`** — just data. 90 days of `{day, o, h, l, c}`. Open it, scroll it, 30 seconds. Every price is invented; every file carries `"synthetic": true`.
 
-**4. `server/main.py`** (725 lines) — the HTTP layer. Big, but **13 labelled sections**:
+**4. `server/main.py`** (749 lines) — the HTTP layer. Big, but **13 labelled sections**:
 
 ```bash
 grep -n "^# ---" server/main.py
@@ -118,7 +118,7 @@ Read it in three passes:
 
 - **The `Session` dataclass** (~line 78). One object holding everything about one user's session. This is your struct. Read the field names; that is the vocabulary for the rest.
 - **`snapshot()`** (~line 251). The most important function in the file. Packs the whole world into one JSON object. Every route ends by calling it. Long docstring — read it.
-- **The routes.** 21 of them, all the same shape. Read two and you have read all of them:
+- **The routes.** 19 of them, all the same shape. Read two and you have read all of them:
 
 ```python
 @app.post("/api/orders")                       # decorator = route registration
