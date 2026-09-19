@@ -2,8 +2,8 @@
 server/main.py
 
 FastAPI app for Rich-HER / Astra Trading. Mock mode only: no Alpaca, no live data.
-Session-authoritative: one in-memory demo session holds the truth, and the browser renders
-whatever /api/state says. The rules live in server/sim_engine.py; this file is the session,
+Session-authoritative: an in-memory session per browser (rh_sid cookie) holds the truth, and
+the browser renders whatever /api/state says. The rules live in server/sim_engine.py; this file is the session,
 the tier gates and the HTTP layer. Owned by B (Backend). Contract: docs/archive/SPEC_v3.0.md section 8.
 
 Run from the repo root:  uvicorn server.main:app --port 8000
@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -105,9 +105,26 @@ class Session:
     worst_equity: float = sim.STARTING_CASH          # lowest equity ever seen, for panicked_at_trough
 
 
-SESSION = Session(participant=1)
+SESSIONS = {}        # one Session per browser, keyed by the rh_sid cookie
+SID_COOKIE = "rh_sid"
+MAX_SESSIONS = 200   # a hosted URL runs for weeks; without a cap the dict grows forever
 QA_LOG = []          # survives /api/reset so V2 can total up stranger-QA across participants
 BOOT_ID = uuid.uuid4().hex[:8]   # new on every server start: tells the browser "I restarted" from "I was reset"
+
+
+def sid_of(request):
+    return request.cookies.get(SID_COOKIE) or request.scope["rh_sid"]
+
+
+def session_for(request):
+    """This browser's own session. One global session was right for a laptop at a demo
+    table; a hosted URL gets several visitors at once and they must never share a portfolio."""
+    sid = sid_of(request)
+    if sid not in SESSIONS:
+        if len(SESSIONS) >= MAX_SESSIONS:
+            SESSIONS.pop(next(iter(SESSIONS)))   # dicts keep insertion order, so this drops the oldest
+        SESSIONS[sid] = Session(participant=len(SESSIONS) + 1)
+    return SESSIONS[sid]
 
 
 def record(session, method, path, body=None):
@@ -364,6 +381,18 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _session_cookie(request: Request, call_next):
+    """Hand every new browser its own session id and remember it in a cookie."""
+    sid = request.cookies.get(SID_COOKIE)
+    request.scope["rh_sid"] = sid or uuid.uuid4().hex
+    response = await call_next(request)
+    if not sid:
+        response.set_cookie(SID_COOKIE, request.scope["rh_sid"], max_age=86400, httponly=True,
+                            samesite="lax", secure=request.url.scheme == "https")
+    return response
+
+
 @app.exception_handler(ApiError)
 async def _api_error(_, exc: ApiError):
     return JSONResponse(status_code=exc.status, content={"error": exc.code, "message": exc.message, **exc.extra})
@@ -380,13 +409,13 @@ async def _validation_error(_, exc: RequestValidationError):
 # ---- session & replay
 
 @app.get("/api/state")
-async def get_state():
-    return snapshot(SESSION)
+async def get_state(request: Request):
+    return snapshot(session_for(request))
 
 
 @app.post("/api/onboarding")
-async def post_onboarding(req: OnboardingReq):
-    session = SESSION
+async def post_onboarding(request: Request, req: OnboardingReq):
+    session = session_for(request)
     if session.onboarded:
         raise ApiError(409, "ALREADY_ONBOARDED", "A replay is already running. Reset the demo to start over.")
     fx = FIXTURES.get(req.symbol.upper())
@@ -405,8 +434,8 @@ async def post_onboarding(req: OnboardingReq):
 
 
 @app.post("/api/advance")
-async def post_advance(req: AdvanceReq):
-    session = SESSION
+async def post_advance(request: Request, req: AdvanceReq):
+    session = session_for(request)
     require_onboarded(session)
     last = len(session.bars) - 1
     if session.cursor >= last:
@@ -445,17 +474,17 @@ async def post_advance(req: AdvanceReq):
 
 
 @app.post("/api/reset")
-async def post_reset():
-    global SESSION
-    SESSION = Session(participant=SESSION.participant + 1)
-    return {"state": snapshot(SESSION)}
+async def post_reset(request: Request):
+    fresh = Session(participant=session_for(request).participant + 1)
+    SESSIONS[sid_of(request)] = fresh
+    return {"state": snapshot(fresh)}
 
 
 # ---- market data
 
 @app.get("/api/quote")
-async def get_quote(symbol: Optional[str] = None, as_of: Optional[int] = Query(None, ge=0)):
-    session = SESSION
+async def get_quote(request: Request, symbol: Optional[str] = None, as_of: Optional[int] = Query(None, ge=0)):
+    session = session_for(request)
     require_onboarded(session)
     sym = (symbol or session.symbol).upper()
     fx = FIXTURES.get(sym)
@@ -472,8 +501,8 @@ async def get_quote(symbol: Optional[str] = None, as_of: Optional[int] = Query(N
 # ---- trading
 
 @app.post("/api/orders")
-async def post_order(req: OrderReq):
-    session = SESSION
+async def post_order(request: Request, req: OrderReq):
+    session = session_for(request)
     require_onboarded(session)
     if req.symbol.upper() != session.symbol:
         raise ApiError(400, "SYMBOL_MISMATCH", f"This replay trades {session.symbol}.")
@@ -505,8 +534,8 @@ async def post_order(req: OrderReq):
 
 
 @app.delete("/api/orders/{order_id}")
-async def delete_order(order_id: int):
-    session = SESSION
+async def delete_order(request: Request, order_id: int):
+    session = session_for(request)
     require_onboarded(session)
     if not 1 <= order_id <= len(session.orders):
         raise ApiError(404, "ORDER_NOT_FOUND", f"There is no order {order_id}.")
@@ -519,8 +548,8 @@ async def delete_order(order_id: int):
 
 
 @app.get("/api/portfolio")
-async def get_portfolio():
-    session = SESSION
+async def get_portfolio(request: Request):
+    session = session_for(request)
     require_onboarded(session)
     st = snapshot(session)
     return {"as_of": session.cursor, **{k: st[k] for k in (
@@ -529,8 +558,8 @@ async def get_portfolio():
 
 
 @app.post("/api/safety-net")
-async def post_safety_net(req: SafetyNetReq):
-    session = SESSION
+async def post_safety_net(request: Request, req: SafetyNetReq):
+    session = session_for(request)
     require_onboarded(session)
     sym = req.symbol.upper()
     pos = session.positions.get(sym)
@@ -568,14 +597,14 @@ async def post_safety_net(req: SafetyNetReq):
 # ---- teaching
 
 @app.get("/api/tiers")
-async def get_tiers():
-    session = SESSION
+async def get_tiers(request: Request):
+    session = session_for(request)
     return {"tiers": TIERS, "active": session.tier, "unlocked": TIER_IDS[:TIER_IDS.index(session.tier) + 1]}
 
 
 @app.post("/api/comprehension")
-async def post_comprehension(req: ComprehensionReq):
-    session = SESSION
+async def post_comprehension(request: Request, req: ComprehensionReq):
+    session = session_for(request)
     require_onboarded(session)
     chk = CHECKS.get(req.check_id)
     if not chk:
@@ -668,9 +697,9 @@ def _graph(act_id):
 
 
 @app.get("/api/story")
-async def get_story():
+async def get_story(request: Request):
     """The current scene, the computed state and the narrative flags."""
-    session = SESSION
+    session = session_for(request)
     computed, flags = story_state(session)
     scene = None
     if session.scene and session.act:
@@ -682,19 +711,19 @@ async def get_story():
 
 
 @app.post("/api/story/start")
-async def post_story_start(act_id: str = Query("act4")):
+async def post_story_start(request: Request, act_id: str = Query("act4")):
     """Jump to the start of an act. The frontend calls this once per chapter."""
-    session = SESSION
+    session = session_for(request)
     graph = _graph(act_id)
     session.act, session.scene = act_id, graph["start"]
     record(session, "POST", f"/api/story/start?act_id={act_id}")
-    return await get_story()
+    return await get_story(request)
 
 
 @app.post("/api/story/advance")
-async def post_story_advance(req: SceneReq):
+async def post_story_advance(request: Request, req: SceneReq):
     """Move to the next scene, applying whatever the chosen option sets."""
-    session = SESSION
+    session = session_for(request)
     if not session.act:
         raise ApiError(409, "NO_STORY", "Start an act first: POST /api/story/start.")
     graph = _graph(session.act)
@@ -709,13 +738,13 @@ async def post_story_advance(req: SceneReq):
     except story.StoryError as e:
         raise ApiError(400, e.code, e.message, **e.extra)
     record(session, "POST", "/api/story/advance", req.model_dump(exclude_none=True))
-    return await get_story()
+    return await get_story(request)
 
 
 @app.get("/api/story/ending")
-async def get_story_ending():
+async def get_story_ending(request: Request):
     """Which ending she has earned, evaluated server-side. Never decided by the browser."""
-    session = SESSION
+    session = session_for(request)
     computed, flags = story_state(session)
     try:
         ending = story.choose_ending(ENDINGS["endings"], computed, flags)

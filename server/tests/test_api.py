@@ -227,7 +227,7 @@ def test_replaying_the_action_log_rebuilds_the_exact_session(client):
     before = client.get("/api/state").json()
     assert before["action_seq"] == 6
 
-    main.SESSION = main.Session(participant=before["participant"])                # "the server restarted"
+    main.SESSIONS.clear()                                                         # "the server restarted"
     assert client.get("/api/state").json()["onboarded"] is False
     for step in before["replay_log"]:
         r = client.request(step["method"], step["path"], json=step["body"])
@@ -304,3 +304,20 @@ def test_withdrawing_more_than_the_cash_is_refused_kindly(client, monkeypatch):
     body = r.json()
     assert body["error"] == "CANNOT_WITHDRAW"
     assert "$100.00" in body["message"]        # tells her what she actually has
+
+
+def test_two_browsers_do_not_share_a_portfolio(client):
+    """The hosted URL gets more than one visitor at a time (README, "Known open items")."""
+    from fastapi.testclient import TestClient
+
+    onboard(client)                      # first visitor buys
+    order(client, "BUY", 10)
+    mine = client.get("/api/state").json()
+
+    other = TestClient(main.app)         # second visitor: no cookie, so a session of her own
+    hers = other.get("/api/state").json()
+    assert hers["onboarded"] is False, "a new visitor must not inherit someone else's replay"
+    assert hers["participant"] != mine["participant"]
+
+    onboard(other, symbol="NVX")         # and her replay must not disturb the first
+    assert client.get("/api/state").json()["symbol"] == mine["symbol"] == "HLX"
