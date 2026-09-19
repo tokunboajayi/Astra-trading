@@ -15,10 +15,14 @@ import {
   renderOnboarding, renderTierScrub, chartModeFor, strategyOverlayOn, customSafetyNetOn, shortName,
 } from './tier-picker.js';
 
-// Where the API lives. Same origin when FastAPI serves this page (port 8000); otherwise the local
-// server. Override with ?api=https://... or window.RICHHER_API for a hosted backend.
+// Where the API lives. One process serves this page and the API, so same origin is right
+// everywhere it runs - localhost on 8000 and the hosted copy alike. Keying off port 8000
+// broke the deploy: rich-her.tech is served on 443, fell through to 127.0.0.1:8000, and
+// asked the visitor's own machine for the data (which HTTPS blocks as mixed content anyway).
+// A file:// page has no server of its own, so it still points at the local one.
+// Override with ?api=https://... or window.RICHHER_API when web/ is served separately.
 const params = new URLSearchParams(location.search);
-const API = params.get('api') ?? window.RICHHER_API ?? (location.port === '8000' ? '' : 'http://127.0.0.1:8000');
+const API = params.get('api') ?? window.RICHHER_API ?? (location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '');
 const STORE_KEY = 'richher.session.v1';
 const FAST_FORWARD_MAX = 30;
 
