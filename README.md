@@ -111,14 +111,6 @@ web/
 
 ---
 
-## ⚠️ Before you demo
-
-1. **Clear the browser cache once** before the first run.
-2. **Keep only one tab open.** Tabs share `localStorage`, so a second tab can replay the first tab's saved session and switch symbols underneath you mid-demo.
-3. **Don't run `python dev.py check` just before presenting.** It binds to port 8000 and may shut down your demo server.
-4. **Hit "Reset demo"** between participants — don't just refresh the page.
-5. Run on **localhost with Wi-Fi off**. Venue Wi-Fi is rarely reliable.
-6. The server holds **one global session** — meaning only one person can use it at a time.
 
 ## 📄 License
 MIT License
